@@ -6,7 +6,7 @@ import type { Account, AccountType, CategoryColor } from '../types';
 import { PageWrapper } from '../components/layout/PageWrapper';
 import { Card } from '../components/ui/Card';
 import { Modal } from '../components/ui/Modal';
-import { Input } from '../components/ui/Input';
+import { Input, TextArea } from '../components/ui/Input';
 import { Button } from '../components/ui/Button';
 import { formatCompact } from '../utils/format';
 import { colorMap, colorOptions } from '../utils/colors';
@@ -25,6 +25,7 @@ function AccountForm({ onClose }: { onClose: () => void }) {
   const [type, setType]               = useState<AccountType>('checking');
   const [initialBalance, setBalance]  = useState('');
   const [color, setColor]             = useState<CategoryColor>('blue');
+  const [description, setDescription] = useState('');
 
   const selectedType = ACCOUNT_TYPES.find(t => t.value === type)!;
 
@@ -34,6 +35,7 @@ function AccountForm({ onClose }: { onClose: () => void }) {
       name, type,
       initialBalance: parseFloat(initialBalance) || 0,
       color, icon: selectedType.icon,
+      description: description || undefined,
     });
     onClose();
   };
@@ -78,6 +80,12 @@ function AccountForm({ onClose }: { onClose: () => void }) {
       </div>
 
       <Input label="Nombre de la cuenta" placeholder="Ej. BBVA Principal" value={name} onChange={e => setName(e.target.value)} />
+      <TextArea
+        label="Para qué uso esta cuenta (opcional)"
+        placeholder="Ej. Gastos del día a día, recibo la nómina aquí..."
+        value={description}
+        onChange={e => setDescription(e.target.value)}
+      />
       <Input label="Saldo inicial" type="number" inputMode="decimal" placeholder="0.00" prefix="$" value={initialBalance} onChange={e => setBalance(e.target.value)} />
 
       <Button fullWidth size="lg" onClick={submit} disabled={!name}>
@@ -88,7 +96,7 @@ function AccountForm({ onClose }: { onClose: () => void }) {
 }
 
 export function Accounts() {
-  const { accounts, transactions, deleteAccount } = useStore();
+  const { accounts, transactions, savingGoals, debts, deleteAccount } = useStore();
   const [showAdd, setShowAdd]   = useState(false);
   const [deleteId, setDeleteId] = useState<string | null>(null);
 
@@ -108,7 +116,17 @@ export function Accounts() {
     return { income, expense };
   }
 
-  const totalBalance = accounts.reduce((s, a) => s + getBalance(a), 0);
+  // Patrimony calculations
+  const accountBalances = accounts.reduce((s, a) => s + getBalance(a), 0);
+  const positiveAccountBalances = accounts.reduce((s, a) => {
+    const b = getBalance(a);
+    return s + (b > 0 ? b : 0);
+  }, 0);
+  const totalSavings = savingGoals.reduce((s, g) => s + g.currentAmount, 0);
+  const totalDebtsRemaining = debts.reduce((s, d) => s + d.remainingAmount, 0);
+  const totalAssets = positiveAccountBalances + totalSavings;
+  const netWorth = accountBalances + totalSavings - totalDebtsRemaining;
+  const assetPct = totalAssets + totalDebtsRemaining > 0 ? (totalAssets / (totalAssets + totalDebtsRemaining)) * 100 : 100;
 
   return (
     <PageWrapper>
@@ -118,22 +136,42 @@ export function Accounts() {
       </div>
 
       <div className="px-6 md:px-8 pb-6 space-y-5">
-        {/* Total balance */}
+        {/* Patrimony card */}
         {accounts.length > 0 && (
           <Card padding>
-            <div className="flex flex-col md:flex-row md:items-center gap-4">
-              <div className="flex-1">
-                <p className="text-xs text-muted uppercase tracking-wider mb-1">Patrimonio neto</p>
-                <p className={`text-3xl font-bold tabular-nums tracking-tight ${totalBalance >= 0 ? 'text-ink' : 'text-down'}`}>
-                  {formatCompact(totalBalance)}
-                </p>
+            <p className="text-xs text-muted uppercase tracking-wider mb-1">Patrimonio Neto</p>
+            <p className={`text-3xl font-bold tabular-nums tracking-tight mb-4 ${netWorth >= 0 ? 'text-ink' : 'text-down'}`}>
+              {formatCompact(netWorth)}
+            </p>
+
+            {/* Breakdown row */}
+            <div className="flex gap-4 mb-4 flex-wrap">
+              <div>
+                <p className="text-2xs text-muted uppercase tracking-wider mb-0.5">Cuentas</p>
+                <p className={`text-sm font-semibold tabular-nums ${accountBalances >= 0 ? 'text-ink' : 'text-down'}`}>{formatCompact(accountBalances)}</p>
               </div>
-              <div className="flex gap-6 md:gap-8 flex-shrink-0">
-                <div>
-                  <p className="text-2xs text-muted uppercase tracking-wider mb-0.5">Cuentas</p>
-                  <p className="text-lg font-semibold text-ink tabular-nums">{accounts.length}</p>
-                </div>
+              <div className="w-px bg-border" />
+              <div>
+                <p className="text-2xs text-muted uppercase tracking-wider mb-0.5">Ahorros</p>
+                <p className="text-sm font-semibold tabular-nums text-up">{formatCompact(totalSavings)}</p>
               </div>
+              <div className="w-px bg-border" />
+              <div>
+                <p className="text-2xs text-muted uppercase tracking-wider mb-0.5">Deudas</p>
+                <p className="text-sm font-semibold tabular-nums text-down">-{formatCompact(totalDebtsRemaining)}</p>
+              </div>
+            </div>
+
+            {/* Asset/liability bar */}
+            <div className="w-full h-2 rounded-full bg-down-light overflow-hidden">
+              <div
+                className="h-full rounded-full bg-up transition-all duration-500"
+                style={{ width: `${assetPct}%` }}
+              />
+            </div>
+            <div className="flex justify-between mt-1">
+              <span className="text-2xs text-up">Activos {formatCompact(totalAssets)}</span>
+              <span className="text-2xs text-down">Pasivos {formatCompact(totalDebtsRemaining)}</span>
             </div>
           </Card>
         )}
@@ -183,6 +221,9 @@ export function Accounts() {
                         <span className="badge mt-0.5" style={{ backgroundColor: `${c.hex}12`, color: c.hex }}>
                           {accType?.label}
                         </span>
+                        {acc.description && (
+                          <p className="text-xs text-muted mt-1 line-clamp-2">{acc.description}</p>
+                        )}
                       </div>
                     </div>
 

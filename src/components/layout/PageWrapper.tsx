@@ -8,13 +8,13 @@ interface PageWrapperProps {
 
 export function PageWrapper({ children, className = '' }: PageWrapperProps) {
   return (
-    <motion.main
-      className={`min-h-screen md:pl-56 pb-20 md:pb-0 bg-surface ${className}`}
-      initial={{ opacity: 0 }}
-      animate={{ opacity: 1 }}
-      transition={{ duration: 0.2 }}
+    <motion.div
+      className={`min-h-screen pb-24 md:pb-8 md:pl-56 bg-surface ${className}`}
+      initial={{ opacity: 0, y: 8 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ duration: 0.25, ease: 'easeOut' }}
     >
       {children}
-    </motion.main>
+    </motion.div>
   );
 }

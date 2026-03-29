@@ -1,8 +1,37 @@
+@import url("https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap");
+
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
 
-@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
+/* CSS Variables */
+:root {
+  --color-surface: 247 247 248;
+  --color-card: 255 255 255;
+  --color-border: 235 235 235;
+  --color-border-strong: 212 212 212;
+  --color-ink: 17 17 17;
+  --color-muted: 107 114 128;
+  --color-subtle: 156 163 175;
+  --color-brand-light: 238 242 255;
+  --color-up-light: 240 253 244;
+  --color-down-light: 254 242 242;
+  --color-warn-light: 255 251 235;
+}
+
+.dark {
+  --color-surface: 10 10 10;
+  --color-card: 20 20 20;
+  --color-border: 38 38 38;
+  --color-border-strong: 55 55 55;
+  --color-ink: 241 241 241;
+  --color-muted: 156 163 175;
+  --color-subtle: 107 114 128;
+  --color-brand-light: 30 27 75;
+  --color-up-light: 5 46 22;
+  --color-down-light: 69 10 10;
+  --color-warn-light: 69 26 3;
+}
 
 * {
   -webkit-tap-highlight-color: transparent;
@@ -10,7 +39,7 @@
 }
 
 html {
-  font-family: Inter, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  font-family: "Inter", -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
   text-rendering: optimizeLegibility;
@@ -18,8 +47,8 @@ html {
 
 body {
   margin: 0;
-  background-color: #F7F7F8;
-  color: #111111;
+  background-color: rgb(var(--color-surface));
+  color: rgb(var(--color-ink));
 }
 
 #root {
@@ -41,48 +70,14 @@ input[type=number]::-webkit-outer-spin-button {
 ::-webkit-scrollbar-track { background: transparent; }
 ::-webkit-scrollbar-thumb { background: #D4D4D4; border-radius: 4px; }
 
+.scrollbar-hide::-webkit-scrollbar { display: none; }
+.scrollbar-hide { -ms-overflow-style: none; scrollbar-width: none; }
+
 @layer components {
-  .kpi-card {
-    @apply bg-card rounded-xl border border-border p-5 flex flex-col gap-2;
-  }
-
-  .kpi-value {
-    @apply text-2xl font-semibold text-ink tracking-tight;
-  }
-
-  .kpi-label {
-    @apply text-xs font-medium text-muted uppercase tracking-wider;
-  }
-
-  .table-row {
-    @apply flex items-center gap-4 px-4 py-3 hover:bg-surface rounded-lg transition-colors cursor-default;
-  }
-
-  .section-title {
-    @apply text-sm font-semibold text-ink;
-  }
-
-  .text-positive {
-    @apply text-up font-semibold;
-  }
-
-  .text-negative {
-    @apply text-down font-semibold;
-  }
-
-  .badge {
-    @apply inline-flex items-center px-2 py-0.5 rounded text-2xs font-medium;
-  }
-
-  .btn-primary {
-    @apply bg-brand text-white rounded-lg px-4 py-2 text-sm font-medium hover:bg-indigo-600 transition-colors;
-  }
-
-  .btn-ghost {
-    @apply text-muted hover:text-ink hover:bg-surface rounded-lg px-3 py-1.5 text-sm font-medium transition-colors;
-  }
-
-  .input-field {
-    @apply w-full bg-surface border border-border rounded-lg px-3 py-2.5 text-sm text-ink placeholder:text-subtle focus:border-brand focus:ring-1 focus:ring-brand/20 transition-colors;
-  }
+  .kpi-card { @apply bg-card rounded-xl border border-border p-5 flex flex-col gap-2; }
+  .section-title { @apply text-sm font-semibold text-ink; }
+  .badge { @apply inline-flex items-center px-2 py-0.5 rounded text-2xs font-medium; }
+  .btn-primary { @apply bg-brand text-white rounded-lg px-4 py-2 text-sm font-medium hover:bg-indigo-600 transition-colors; }
+  .btn-ghost { @apply text-muted hover:text-ink hover:bg-surface rounded-lg px-3 py-1.5 text-sm font-medium transition-colors; }
+  .input-field { @apply w-full bg-surface border border-border rounded-lg px-3 py-2.5 text-sm text-ink placeholder:text-subtle focus:border-brand transition-colors; }
 }
