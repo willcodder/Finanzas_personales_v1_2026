@@ -1,0 +1,1 @@
+# Finanzas_personales_v1_2026
