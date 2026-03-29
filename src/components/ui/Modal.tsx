@@ -7,70 +7,73 @@ interface ModalProps {
   onClose: () => void;
   title?: string;
   children: React.ReactNode;
+  width?: string;
 }
 
-export function Modal({ isOpen, onClose, title, children }: ModalProps) {
+export function Modal({ isOpen, onClose, title, children, width = 'max-w-md' }: ModalProps) {
   useEffect(() => {
-    if (isOpen) {
-      document.body.style.overflow = 'hidden';
-    } else {
-      document.body.style.overflow = '';
-    }
+    if (isOpen) document.body.style.overflow = 'hidden';
+    else document.body.style.overflow = '';
     return () => { document.body.style.overflow = ''; };
   }, [isOpen]);
+
+  useEffect(() => {
+    const handler = (e: KeyboardEvent) => { if (e.key === 'Escape') onClose(); };
+    if (isOpen) window.addEventListener('keydown', handler);
+    return () => window.removeEventListener('keydown', handler);
+  }, [isOpen, onClose]);
 
   return (
     <AnimatePresence>
       {isOpen && (
         <>
+          {/* Backdrop */}
           <motion.div
-            className="fixed inset-0 bg-black/40 backdrop-blur-sm z-40"
+            className="fixed inset-0 bg-black/30 backdrop-blur-[2px] z-50"
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
             onClick={onClose}
           />
 
-          {/* Mobile: slide up from bottom */}
-          <div className="md:hidden">
+          {/* Mobile: bottom sheet */}
+          <div className="md:hidden fixed bottom-0 left-0 right-0 z-50">
             <motion.div
-              className="fixed bottom-0 left-0 w-full z-50"
+              className={`bg-card rounded-t-2xl border-t border-border overflow-hidden max-h-[92vh] flex flex-col`}
               initial={{ y: '100%' }}
               animate={{ y: 0 }}
               exit={{ y: '100%' }}
-              transition={{ type: 'spring', damping: 30, stiffness: 300 }}
+              transition={{ type: 'spring', damping: 32, stiffness: 300 }}
             >
-              <div className="bg-white dark:bg-[#1C1C1E] rounded-t-3xl overflow-hidden max-h-[90vh] flex flex-col">
-                <div className="flex justify-center pt-3 pb-1 flex-shrink-0">
-                  <div className="w-10 h-1 rounded-full bg-[#C7C7CC] dark:bg-[#3A3A3C]" />
-                </div>
-                {title && (
-                  <div className="flex items-center justify-between px-5 py-3 flex-shrink-0">
-                    <h2 className="text-lg font-semibold text-[#1C1C1E] dark:text-white">{title}</h2>
-                    <button onClick={onClose} className="w-8 h-8 flex items-center justify-center rounded-full bg-[#F2F2F7] dark:bg-[#2C2C2E] text-[#8E8E93]">
-                      <X size={16} />
-                    </button>
-                  </div>
-                )}
-                <div className="overflow-y-auto flex-1">{children}</div>
+              <div className="flex justify-center pt-3 pb-1 flex-shrink-0">
+                <div className="w-8 h-1 rounded-full bg-border" />
               </div>
+              {title && (
+                <div className="flex items-center justify-between px-5 py-3 border-b border-border flex-shrink-0">
+                  <h2 className="text-sm font-semibold text-ink">{title}</h2>
+                  <button onClick={onClose} className="w-7 h-7 flex items-center justify-center rounded-lg hover:bg-surface text-muted">
+                    <X size={15} />
+                  </button>
+                </div>
+              )}
+              <div className="overflow-y-auto flex-1">{children}</div>
             </motion.div>
           </div>
 
           {/* Desktop: centered dialog */}
-          <div className="hidden md:flex fixed inset-0 items-center justify-center z-50 p-4">
+          <div className="hidden md:flex fixed inset-0 items-center justify-center z-50 p-6">
             <motion.div
-              className="bg-white dark:bg-[#1C1C1E] rounded-3xl w-full max-w-lg max-h-[85vh] flex flex-col shadow-apple-xl"
-              initial={{ opacity: 0, scale: 0.95, y: 8 }}
+              className={`bg-card rounded-xl border border-border w-full ${width} max-h-[85vh] flex flex-col shadow-dropdown`}
+              initial={{ opacity: 0, scale: 0.97, y: 6 }}
               animate={{ opacity: 1, scale: 1, y: 0 }}
-              exit={{ opacity: 0, scale: 0.95, y: 8 }}
-              transition={{ type: 'spring', damping: 30, stiffness: 300 }}
+              exit={{ opacity: 0, scale: 0.97, y: 6 }}
+              transition={{ duration: 0.15 }}
             >
               {title && (
-                <div className="flex items-center justify-between px-6 py-4 border-b border-[#F2F2F7] dark:border-[#2C2C2E] flex-shrink-0">
-                  <h2 className="text-lg font-semibold text-[#1C1C1E] dark:text-white">{title}</h2>
-                  <button onClick={onClose} className="w-8 h-8 flex items-center justify-center rounded-full bg-[#F2F2F7] dark:bg-[#2C2C2E] text-[#8E8E93]">
-                    <X size={16} />
+                <div className="flex items-center justify-between px-5 py-4 border-b border-border flex-shrink-0">
+                  <h2 className="text-sm font-semibold text-ink">{title}</h2>
+                  <button onClick={onClose} className="w-7 h-7 flex items-center justify-center rounded-lg hover:bg-surface text-muted">
+                    <X size={15} />
                   </button>
                 </div>
               )}

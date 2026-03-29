@@ -1,7 +1,7 @@
 import React from 'react';
 import { motion } from 'framer-motion';
 
-type Variant = 'primary' | 'secondary' | 'ghost' | 'danger';
+type Variant = 'primary' | 'secondary' | 'ghost' | 'danger' | 'outline';
 type Size = 'sm' | 'md' | 'lg';
 
 interface ButtonProps extends React.ButtonHTMLAttributes<HTMLButtonElement> {
@@ -12,30 +12,27 @@ interface ButtonProps extends React.ButtonHTMLAttributes<HTMLButtonElement> {
 }
 
 const variants: Record<Variant, string> = {
-  primary: 'bg-[#007AFF] text-white active:bg-[#0066CC]',
-  secondary: 'bg-[#F2F2F7] dark:bg-[#2C2C2E] text-[#007AFF] dark:text-[#0A84FF]',
-  ghost: 'bg-transparent text-[#007AFF] dark:text-[#0A84FF]',
-  danger: 'bg-[#FF3B30]/10 text-[#FF3B30]',
+  primary:   'bg-brand text-white hover:bg-indigo-600',
+  secondary: 'bg-surface text-ink hover:bg-border border border-border',
+  ghost:     'text-muted hover:text-ink hover:bg-surface',
+  danger:    'bg-down-light text-down hover:bg-red-100',
+  outline:   'border border-border text-ink hover:bg-surface',
 };
 
 const sizes: Record<Size, string> = {
-  sm: 'px-3 py-1.5 text-sm rounded-xl font-medium',
-  md: 'px-4 py-2.5 text-base rounded-2xl font-semibold',
-  lg: 'px-6 py-3.5 text-base rounded-2xl font-semibold',
+  sm: 'h-7 px-3 text-xs rounded-md font-medium',
+  md: 'h-9 px-4 text-sm rounded-lg font-medium',
+  lg: 'h-10 px-5 text-sm rounded-lg font-semibold',
 };
 
 export function Button({
-  variant = 'primary',
-  size = 'md',
-  fullWidth = false,
-  children,
-  className = '',
-  ...props
+  variant = 'primary', size = 'md', fullWidth = false,
+  children, className = '', ...props
 }: ButtonProps) {
   return (
     <motion.button
-      whileTap={{ scale: 0.97 }}
-      transition={{ duration: 0.1 }}
+      whileTap={{ scale: 0.98 }}
+      transition={{ duration: 0.08 }}
       className={`
         ${variants[variant]} ${sizes[size]}
         ${fullWidth ? 'w-full' : ''}

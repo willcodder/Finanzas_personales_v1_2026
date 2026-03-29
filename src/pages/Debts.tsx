@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Plus, Trash2, ChevronDown, ChevronUp } from 'lucide-react';
+import { Plus, Trash2, ChevronDown, ChevronUp, CheckCircle2 } from 'lucide-react';
 import { useStore } from '../store/useStore';
 import type { Debt, CategoryColor } from '../types';
 import { PageWrapper } from '../components/layout/PageWrapper';
@@ -12,92 +12,71 @@ import { ProgressBar } from '../components/ui/ProgressBar';
 import { formatCompact, formatDate, percentage } from '../utils/format';
 import { colorMap, colorOptions } from '../utils/colors';
 
-const ICONS = ['💳', '🏦', '🏠', '🚗', '🎓', '💊', '📱', '💻', '🛒', '💰', '🤝', '📋'];
+const ICONS = ['💳','🏦','🏠','🚗','🎓','💊','📱','💻','🛒','💰','🤝','📋','🏢','💼'];
 
 function DebtForm({ onClose }: { onClose: () => void }) {
   const { addDebt } = useStore();
-  const [name, setName] = useState('');
-  const [creditor, setCreditor] = useState('');
-  const [totalAmount, setTotalAmount] = useState('');
-  const [remainingAmount, setRemainingAmount] = useState('');
-  const [interestRate, setInterestRate] = useState('');
-  const [dueDate, setDueDate] = useState('');
-  const [icon, setIcon] = useState('💳');
-  const [color, setColor] = useState<CategoryColor>('red');
+  const [name, setName]           = useState('');
+  const [creditor, setCreditor]   = useState('');
+  const [total, setTotal]         = useState('');
+  const [remaining, setRemaining] = useState('');
+  const [rate, setRate]           = useState('');
+  const [dueDate, setDueDate]     = useState('');
+  const [icon, setIcon]           = useState('💳');
+  const [color, setColor]         = useState<CategoryColor>('red');
 
-  const handleSubmit = () => {
-    if (!name || !totalAmount || !creditor) return;
-    const total = parseFloat(totalAmount);
-    const remaining = remainingAmount ? parseFloat(remainingAmount) : total;
+  const submit = () => {
+    if (!name || !total || !creditor) return;
+    const t = parseFloat(total);
     addDebt({
-      name,
-      creditor,
-      totalAmount: total,
-      remainingAmount: remaining,
-      interestRate: interestRate ? parseFloat(interestRate) : undefined,
+      name, creditor,
+      totalAmount: t,
+      remainingAmount: remaining ? parseFloat(remaining) : t,
+      interestRate: rate ? parseFloat(rate) : undefined,
       dueDate: dueDate ? new Date(dueDate + 'T12:00:00').toISOString() : undefined,
-      icon,
-      color,
+      icon, color,
     });
     onClose();
   };
 
   return (
-    <div className="px-5 py-4 space-y-4">
-      {/* Icon picker */}
-      <div>
-        <p className="text-sm font-medium text-[#3A3A3C] dark:text-[#EBEBF5]/80 mb-2 px-1">Icono</p>
-        <div className="flex flex-wrap gap-2">
-          {ICONS.map((ic) => (
-            <button
-              key={ic}
-              onClick={() => setIcon(ic)}
-              className={`w-10 h-10 rounded-xl flex items-center justify-center text-xl transition-all ${
-                icon === ic
-                  ? 'bg-[#FF3B30]/15 ring-1 ring-[#FF3B30]'
-                  : 'bg-[#F2F2F7] dark:bg-[#2C2C2E]'
+    <div className="p-5 space-y-4">
+      <div className="space-y-1.5">
+        <label className="text-xs font-medium text-ink">Icono</label>
+        <div className="flex flex-wrap gap-1.5">
+          {ICONS.map(ic => (
+            <button key={ic} onClick={() => setIcon(ic)}
+              className={`w-9 h-9 rounded-lg flex items-center justify-center text-lg transition-all ${
+                icon === ic ? 'bg-down-light ring-1 ring-down' : 'bg-surface hover:bg-border/50'
               }`}
-            >
-              {ic}
-            </button>
+            >{ic}</button>
           ))}
         </div>
       </div>
-
-      {/* Color */}
-      <div>
-        <p className="text-sm font-medium text-[#3A3A3C] dark:text-[#EBEBF5]/80 mb-2 px-1">Color</p>
+      <div className="space-y-1.5">
+        <label className="text-xs font-medium text-ink">Color</label>
         <div className="flex gap-2 flex-wrap">
-          {colorOptions.map((c) => (
-            <button
-              key={c}
-              onClick={() => setColor(c)}
-              className={`w-8 h-8 rounded-full transition-transform ${
-                color === c ? 'scale-110 ring-2 ring-offset-2 ring-offset-white dark:ring-offset-[#1C1C1E]' : ''
-              }`}
+          {colorOptions.map(c => (
+            <button key={c} onClick={() => setColor(c)}
+              className={`w-7 h-7 rounded-full transition-transform ${color === c ? 'scale-110 ring-2 ring-offset-2 ring-offset-card' : ''}`}
               style={{ backgroundColor: colorMap[c].hex }}
             />
           ))}
         </div>
       </div>
-
-      <Input label="Nombre de la deuda" placeholder="Ej. Tarjeta de crédito" value={name} onChange={(e) => setName(e.target.value)} />
-      <Input label="Acreedor / Institución" placeholder="Ej. Banco Nacional" value={creditor} onChange={(e) => setCreditor(e.target.value)} />
-      <Input label="Monto total" type="number" inputMode="decimal" placeholder="0.00" prefix="$" value={totalAmount} onChange={(e) => setTotalAmount(e.target.value)} />
-      <Input label="Saldo pendiente (si difiere del total)" type="number" inputMode="decimal" placeholder="0.00" prefix="$" value={remainingAmount} onChange={(e) => setRemainingAmount(e.target.value)} />
-      <Input label="Tasa de interés % (opcional)" type="number" inputMode="decimal" placeholder="0.00" value={interestRate} onChange={(e) => setInterestRate(e.target.value)} />
-      <Input label="Fecha de vencimiento (opcional)" type="date" value={dueDate} onChange={(e) => setDueDate(e.target.value)} />
-
-      <div className="pb-2">
-        <Button
-          fullWidth size="lg"
-          onClick={handleSubmit}
-          disabled={!name || !totalAmount || !creditor}
-          className="!bg-[#FF3B30]"
-        >
-          Registrar deuda
-        </Button>
+      <Input label="Nombre" placeholder="Ej. Tarjeta de crédito" value={name} onChange={e => setName(e.target.value)} />
+      <Input label="Acreedor" placeholder="Ej. Banco Nacional" value={creditor} onChange={e => setCreditor(e.target.value)} />
+      <div className="grid grid-cols-2 gap-3">
+        <Input label="Monto total" type="number" inputMode="decimal" placeholder="0.00" prefix="$" value={total} onChange={e => setTotal(e.target.value)} />
+        <Input label="Saldo pendiente" type="number" inputMode="decimal" placeholder="= Total" prefix="$" value={remaining} onChange={e => setRemaining(e.target.value)} />
       </div>
+      <div className="grid grid-cols-2 gap-3">
+        <Input label="Tasa interés %" type="number" inputMode="decimal" placeholder="0.0" suffix="%" value={rate} onChange={e => setRate(e.target.value)} />
+        <Input label="Vencimiento" type="date" value={dueDate} onChange={e => setDueDate(e.target.value)} />
+      </div>
+      <Button fullWidth size="lg" onClick={submit} disabled={!name || !total || !creditor} className="!bg-down hover:!bg-red-700">
+        Registrar deuda
+      </Button>
     </div>
   );
 }
@@ -105,153 +84,108 @@ function DebtForm({ onClose }: { onClose: () => void }) {
 function PaymentForm({ debt, onClose }: { debt: Debt; onClose: () => void }) {
   const { addDebtPayment } = useStore();
   const [amount, setAmount] = useState('');
-  const [note, setNote] = useState('');
-
-  const handleSubmit = () => {
-    if (!amount) return;
-    addDebtPayment(debt.id, {
-      amount: parseFloat(amount),
-      date: new Date().toISOString(),
-      note: note || undefined,
-    });
-    onClose();
-  };
-
+  const [note, setNote]     = useState('');
+  const c = colorMap[debt.color];
   return (
-    <div className="px-5 py-4 space-y-4">
-      <div className="bg-[#F2F2F7] dark:bg-[#2C2C2E] rounded-2xl p-4 flex items-center gap-3">
-        <div className={`w-12 h-12 rounded-2xl flex items-center justify-center ${colorMap[debt.color].light}`}>
-          <span className="text-2xl">{debt.icon}</span>
+    <div className="p-5 space-y-4">
+      <div className="flex items-center gap-3 p-4 bg-surface rounded-lg border border-border">
+        <div className="w-10 h-10 rounded-lg flex items-center justify-center text-xl" style={{ backgroundColor: `${c.hex}15` }}>
+          {debt.icon}
         </div>
         <div>
-          <p className="font-semibold text-[#1C1C1E] dark:text-white">{debt.name}</p>
-          <p className="text-sm text-[#FF3B30]">Pendiente: {formatCompact(debt.remainingAmount)}</p>
+          <p className="text-sm font-semibold text-ink">{debt.name}</p>
+          <p className="text-xs text-down font-medium">Pendiente: {formatCompact(debt.remainingAmount)}</p>
         </div>
       </div>
-      <Input
-        label="Monto del pago"
-        type="number"
-        inputMode="decimal"
-        placeholder="0.00"
-        prefix="$"
-        value={amount}
-        onChange={(e) => setAmount(e.target.value)}
-      />
-      <Input
-        label="Nota (opcional)"
-        placeholder="Ej. Cuota mensual"
-        value={note}
-        onChange={(e) => setNote(e.target.value)}
-      />
-      <div className="pb-2">
-        <Button fullWidth size="lg" onClick={handleSubmit} disabled={!amount} className="!bg-[#007AFF]">
-          Registrar pago
-        </Button>
-      </div>
+      <Input label="Monto del pago" type="number" inputMode="decimal" placeholder="0.00" prefix="$" value={amount} onChange={e => setAmount(e.target.value)} />
+      <Input label="Nota (opcional)" placeholder="Ej. Cuota mensual" value={note} onChange={e => setNote(e.target.value)} />
+      <Button fullWidth size="lg" onClick={() => { if (amount) { addDebtPayment(debt.id, { amount: parseFloat(amount), date: new Date().toISOString(), note: note || undefined }); onClose(); } }} disabled={!amount} className="!bg-brand">
+        Registrar pago
+      </Button>
     </div>
   );
 }
 
-function DebtCard({ debt }: { debt: Debt }) {
+function DebtRow({ debt }: { debt: Debt }) {
   const { deleteDebt } = useStore();
   const [expanded, setExpanded] = useState(false);
-  const [showPay, setShowPay] = useState(false);
-  const [deleteId, setDeleteId] = useState<string | null>(null);
+  const [showPay, setShowPay]   = useState(false);
+  const [showDel, setShowDel]   = useState(false);
 
-  const colors = colorMap[debt.color];
-  const paid = debt.totalAmount - debt.remainingAmount;
+  const c = colorMap[debt.color];
+  const paid    = debt.totalAmount - debt.remainingAmount;
   const paidPct = percentage(paid, debt.totalAmount);
-  const isCompleted = debt.remainingAmount <= 0;
+  const done    = debt.remainingAmount <= 0;
 
   return (
     <>
-      <Card className="overflow-visible">
-        <div className="p-4">
-          <div className="flex items-start gap-3 mb-3">
-            <div className={`w-12 h-12 rounded-2xl flex items-center justify-center flex-shrink-0 ${colors.light}`}>
-              <span className="text-2xl">{debt.icon}</span>
+      <Card className="overflow-hidden">
+        <div className="p-5">
+          <div className="flex items-start gap-3">
+            <div className="w-10 h-10 rounded-lg flex items-center justify-center text-xl flex-shrink-0" style={{ backgroundColor: `${c.hex}15` }}>
+              {debt.icon}
             </div>
             <div className="flex-1 min-w-0">
-              <div className="flex items-center gap-2">
-                <p className="font-semibold text-[#1C1C1E] dark:text-white">{debt.name}</p>
-                {isCompleted && (
-                  <span className="text-xs bg-[#34C759]/15 text-[#34C759] px-2 py-0.5 rounded-full font-medium">
-                    Pagada ✓
+              <div className="flex items-center gap-2 mb-0.5">
+                <p className="font-semibold text-ink text-sm">{debt.name}</p>
+                {done && (
+                  <span className="badge bg-up-light text-up flex items-center gap-0.5">
+                    <CheckCircle2 size={10} /> Saldada
                   </span>
                 )}
+                {debt.interestRate && !done && (
+                  <span className="badge bg-warn-light text-warn">{debt.interestRate}% interés</span>
+                )}
               </div>
-              <p className="text-xs text-[#8E8E93] mt-0.5">{debt.creditor}</p>
-              {debt.interestRate && (
-                <p className="text-xs text-[#FF9500] mt-0.5">⚡ {debt.interestRate}% interés</p>
-              )}
-              {debt.dueDate && (
-                <p className="text-xs text-[#8E8E93] mt-0.5">📅 Vence: {formatDate(debt.dueDate)}</p>
-              )}
+              <p className="text-xs text-muted">{debt.creditor}</p>
+              {debt.dueDate && <p className="text-xs text-subtle mt-0.5">Vence: {formatDate(debt.dueDate)}</p>}
             </div>
-            <div className="flex items-center gap-1">
-              {!isCompleted && (
-                <button
-                  onClick={() => setShowPay(true)}
-                  className="px-3 py-1.5 bg-[#007AFF]/10 text-[#007AFF] rounded-xl text-xs font-semibold"
-                >
+            <div className="flex items-center gap-2 flex-shrink-0">
+              <div className="text-right">
+                <p className={`text-base font-semibold tabular-nums ${done ? 'text-up' : 'text-down'}`}>
+                  {done ? '¡Saldada!' : formatCompact(debt.remainingAmount)}
+                </p>
+                <p className="text-xs text-muted">{paidPct}% pagado</p>
+              </div>
+              {!done && (
+                <button onClick={() => setShowPay(true)} className="btn-primary text-xs px-3 py-1.5 rounded-lg">
                   Pagar
                 </button>
               )}
-              <button
-                onClick={() => setDeleteId(debt.id)}
-                className="w-7 h-7 flex items-center justify-center rounded-lg text-[#C7C7CC] hover:text-[#FF3B30] transition-colors"
-              >
-                <Trash2 size={14} />
+              <button onClick={() => setShowDel(true)} className="w-8 h-8 flex items-center justify-center rounded-lg text-subtle hover:text-down hover:bg-down-light transition-colors">
+                <Trash2 size={13} />
               </button>
             </div>
           </div>
 
-          {/* Progress */}
-          <div className="mb-3">
-            <div className="flex justify-between text-xs text-[#8E8E93] mb-1.5">
-              <span>Pagado: {formatCompact(paid)}</span>
-              <span>Total: {formatCompact(debt.totalAmount)}</span>
-            </div>
-            <ProgressBar value={paidPct} color={isCompleted ? '#34C759' : colors.hex} />
+          <div className="mt-4">
+            <ProgressBar value={paidPct} color={done ? '#16A34A' : c.hex} height={5} />
             <div className="flex justify-between mt-1.5">
-              <span className={`text-sm font-semibold ${isCompleted ? 'text-[#34C759]' : 'text-[#FF3B30]'}`}>
-                {isCompleted ? '¡Completada!' : `Pendiente: ${formatCompact(debt.remainingAmount)}`}
-              </span>
-              <span className="text-xs text-[#8E8E93]">{paidPct}% pagado</span>
+              <span className="text-xs text-muted tabular-nums">Pagado: {formatCompact(paid)}</span>
+              <span className="text-xs text-muted tabular-nums">Total: {formatCompact(debt.totalAmount)}</span>
             </div>
           </div>
 
-          {/* Payment history toggle */}
           {debt.payments.length > 0 && (
-            <button
-              onClick={() => setExpanded(!expanded)}
-              className="flex items-center gap-1.5 text-xs text-[#8E8E93] font-medium"
-            >
-              {expanded ? <ChevronUp size={14} /> : <ChevronDown size={14} />}
+            <button onClick={() => setExpanded(!expanded)} className="flex items-center gap-1 mt-3 text-xs text-muted hover:text-ink transition-colors">
+              {expanded ? <ChevronUp size={13} /> : <ChevronDown size={13} />}
               {debt.payments.length} pago{debt.payments.length !== 1 ? 's' : ''} registrado{debt.payments.length !== 1 ? 's' : ''}
             </button>
           )}
         </div>
 
-        {/* Payment history */}
         <AnimatePresence>
           {expanded && debt.payments.length > 0 && (
-            <motion.div
-              initial={{ height: 0, opacity: 0 }}
-              animate={{ height: 'auto', opacity: 1 }}
-              exit={{ height: 0, opacity: 0 }}
-              className="overflow-hidden border-t border-[#F2F2F7] dark:border-[#2C2C2E]"
-            >
-              <div className="px-4 py-2 space-y-2">
-                {[...debt.payments].reverse().map((p) => (
-                  <div key={p.id} className="flex items-center justify-between py-1.5">
-                    <div>
-                      <p className="text-xs font-medium text-[#1C1C1E] dark:text-white">
-                        Pago del {formatDate(p.date)}
-                      </p>
-                      {p.note && <p className="text-xs text-[#8E8E93]">{p.note}</p>}
-                    </div>
-                    <span className="text-sm font-semibold text-[#34C759]">-{formatCompact(p.amount)}</span>
+            <motion.div initial={{ height: 0 }} animate={{ height: 'auto' }} exit={{ height: 0 }} className="overflow-hidden border-t border-border">
+              <div className="px-5 py-3 bg-surface">
+                <div className="hidden md:grid grid-cols-[1fr_100px_1fr] gap-4 text-2xs font-semibold text-subtle uppercase tracking-wider mb-2">
+                  <span>Fecha</span><span>Importe</span><span>Nota</span>
+                </div>
+                {[...debt.payments].reverse().map(p => (
+                  <div key={p.id} className="flex md:grid md:grid-cols-[1fr_100px_1fr] gap-2 md:gap-4 items-center py-1.5 border-b border-border last:border-0">
+                    <p className="text-xs text-muted">{formatDate(p.date)}</p>
+                    <p className="text-xs font-semibold text-up tabular-nums">-{formatCompact(p.amount)}</p>
+                    <p className="text-xs text-subtle">{p.note ?? '—'}</p>
                   </div>
                 ))}
               </div>
@@ -260,18 +194,15 @@ function DebtCard({ debt }: { debt: Debt }) {
         </AnimatePresence>
       </Card>
 
-      <Modal isOpen={showPay} onClose={() => setShowPay(false)} title="Registrar Pago">
+      <Modal isOpen={showPay} onClose={() => setShowPay(false)} title="Registrar pago">
         <PaymentForm debt={debt} onClose={() => setShowPay(false)} />
       </Modal>
-
-      <Modal isOpen={!!deleteId} onClose={() => setDeleteId(null)} title="Eliminar deuda">
-        <div className="px-5 py-4 space-y-4">
-          <p className="text-[#3A3A3C] dark:text-[#EBEBF5]/80">¿Eliminar esta deuda?</p>
-          <div className="flex gap-3">
-            <Button variant="secondary" fullWidth onClick={() => setDeleteId(null)}>Cancelar</Button>
-            <Button variant="danger" fullWidth onClick={() => { deleteDebt(debt.id); setDeleteId(null); }}>
-              Eliminar
-            </Button>
+      <Modal isOpen={showDel} onClose={() => setShowDel(false)} title="Eliminar deuda">
+        <div className="p-5 space-y-4">
+          <p className="text-sm text-muted">¿Eliminar esta deuda?</p>
+          <div className="flex gap-2">
+            <Button variant="secondary" fullWidth onClick={() => setShowDel(false)}>Cancelar</Button>
+            <Button variant="danger" fullWidth onClick={() => { deleteDebt(debt.id); setShowDel(false); }}>Eliminar</Button>
           </div>
         </div>
       </Modal>
@@ -283,96 +214,88 @@ export function Debts() {
   const { debts } = useStore();
   const [showAdd, setShowAdd] = useState(false);
 
-  const activeDebts = debts.filter((d) => d.remainingAmount > 0);
-  const paidDebts = debts.filter((d) => d.remainingAmount <= 0);
-
-  const totalDebt = activeDebts.reduce((s, d) => s + d.remainingAmount, 0);
-  const totalOriginal = activeDebts.reduce((s, d) => s + d.totalAmount, 0);
+  const active = debts.filter(d => d.remainingAmount > 0);
+  const paid   = debts.filter(d => d.remainingAmount <= 0);
+  const totalDebt     = active.reduce((s, d) => s + d.remainingAmount, 0);
+  const totalOriginal = active.reduce((s, d) => s + d.totalAmount, 0);
 
   return (
     <PageWrapper>
-      <div className="px-5 md:px-8 pt-14 md:pt-10 pb-4">
-        <h1 className="text-2xl font-bold text-[#1C1C1E] dark:text-white tracking-tight mb-5">
-          Mis Deudas
-        </h1>
+      <div className="flex flex-col md:flex-row md:items-center justify-between px-6 md:px-8 pt-6 pb-5 gap-4">
+        <h1 className="text-xl font-semibold text-ink">Mis Deudas</h1>
+        <Button onClick={() => setShowAdd(true)} className="!bg-down hover:!bg-red-700"><Plus size={15} /> Nueva deuda</Button>
+      </div>
 
+      <div className="px-6 md:px-8 pb-6 space-y-5">
         {/* Summary */}
-        {activeDebts.length > 0 && (
-          <motion.div
-            className="rounded-3xl p-5 mb-5"
-            style={{ background: 'linear-gradient(135deg, #FF3B30 0%, #FF6B6B 100%)' }}
-            initial={{ opacity: 0, y: 12 }}
-            animate={{ opacity: 1, y: 0 }}
-          >
-            <p className="text-white/70 text-sm mb-1">Deuda total pendiente</p>
-            <p className="text-3xl font-bold text-white mb-4">{formatCompact(totalDebt)}</p>
-            <ProgressBar
-              value={percentage(totalOriginal - totalDebt, totalOriginal)}
-              color="rgba(255,255,255,0.9)"
-              height={6}
-            />
-            <div className="flex justify-between mt-2">
-              <span className="text-white/70 text-xs">{activeDebts.length} deuda{activeDebts.length !== 1 ? 's' : ''} activa{activeDebts.length !== 1 ? 's' : ''}</span>
-              <span className="text-white/70 text-xs">Total: {formatCompact(totalOriginal)}</span>
+        {active.length > 0 && (
+          <Card padding>
+            <div className="flex flex-col md:flex-row md:items-center gap-4">
+              <div className="flex-1">
+                <div className="flex items-center justify-between mb-2">
+                  <span className="text-sm font-medium text-ink">Progreso de pago</span>
+                  <span className="text-sm font-semibold text-down">
+                    {percentage(totalOriginal - totalDebt, totalOriginal)}%
+                  </span>
+                </div>
+                <ProgressBar value={percentage(totalOriginal - totalDebt, totalOriginal)} color="#16A34A" bg="#FEE2E2" height={6} />
+              </div>
+              <div className="flex gap-6 md:gap-8 flex-shrink-0">
+                <div>
+                  <p className="text-2xs text-muted uppercase tracking-wider mb-0.5">Pendiente</p>
+                  <p className="text-lg font-semibold text-down tabular-nums">{formatCompact(totalDebt)}</p>
+                </div>
+                <div>
+                  <p className="text-2xs text-muted uppercase tracking-wider mb-0.5">Total original</p>
+                  <p className="text-lg font-semibold text-ink tabular-nums">{formatCompact(totalOriginal)}</p>
+                </div>
+                <div>
+                  <p className="text-2xs text-muted uppercase tracking-wider mb-0.5">Deudas activas</p>
+                  <p className="text-lg font-semibold text-ink tabular-nums">{active.length}</p>
+                </div>
+              </div>
             </div>
-          </motion.div>
+          </Card>
         )}
 
-        {/* Active debts */}
-        {activeDebts.length > 0 && (
-          <div className="mb-5">
-            <h2 className="text-base font-semibold text-[#1C1C1E] dark:text-white mb-3">Pendientes</h2>
+        {active.length > 0 && (
+          <div>
+            <p className="text-xs font-semibold text-muted uppercase tracking-wider mb-3">Pendientes · {active.length}</p>
             <div className="space-y-3">
-              {activeDebts.map((debt, i) => (
-                <motion.div
-                  key={debt.id}
-                  initial={{ opacity: 0, y: 12 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  transition={{ delay: i * 0.05 }}
-                >
-                  <DebtCard debt={debt} />
+              {active.map((d, i) => (
+                <motion.div key={d.id} initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: i * 0.04 }}>
+                  <DebtRow debt={d} />
                 </motion.div>
               ))}
             </div>
           </div>
         )}
 
-        {/* Paid debts */}
-        {paidDebts.length > 0 && (
-          <div className="mb-5">
-            <h2 className="text-base font-semibold text-[#1C1C1E] dark:text-white mb-3">Saldadas 🎉</h2>
+        {paid.length > 0 && (
+          <div>
+            <p className="text-xs font-semibold text-muted uppercase tracking-wider mb-3">Saldadas · {paid.length}</p>
             <div className="space-y-3">
-              {paidDebts.map((debt) => (
-                <DebtCard key={debt.id} debt={debt} />
-              ))}
+              {paid.map(d => <DebtRow key={d.id} debt={d} />)}
             </div>
           </div>
         )}
 
-        {/* Empty state */}
         {debts.length === 0 && (
-          <div className="flex flex-col items-center text-center py-16">
-            <div className="w-20 h-20 rounded-full bg-[#34C759]/10 flex items-center justify-center mb-4">
-              <span className="text-4xl">🎉</span>
+          <Card padding className="flex flex-col items-center text-center py-16">
+            <div className="w-14 h-14 rounded-2xl bg-up-light flex items-center justify-center mb-4">
+              <CheckCircle2 size={28} className="text-up" />
             </div>
-            <h3 className="font-semibold text-[#1C1C1E] dark:text-white text-lg mb-2">Sin deudas registradas</h3>
-            <p className="text-sm text-[#8E8E93] max-w-xs mb-6">
-              Si tienes deudas pendientes, regístralas aquí para llevar un control.
-            </p>
-          </div>
+            <h3 className="font-semibold text-ink mb-2">Sin deudas registradas</h3>
+            <p className="text-sm text-muted max-w-xs">¡Genial! Si tienes deudas pendientes puedes registrarlas aquí para controlarlas.</p>
+          </Card>
         )}
       </div>
 
-      {/* FAB */}
-      <motion.button
-        className="fixed bottom-24 right-5 w-14 h-14 bg-[#FF3B30] rounded-full flex items-center justify-center shadow-apple-lg z-20"
-        onClick={() => setShowAdd(true)}
-        whileTap={{ scale: 0.92 }}
-      >
-        <Plus size={24} className="text-white" />
-      </motion.button>
+      <button className="md:hidden fixed bottom-20 right-5 w-12 h-12 bg-down rounded-xl flex items-center justify-center shadow-dropdown z-20" onClick={() => setShowAdd(true)}>
+        <Plus size={22} className="text-white" />
+      </button>
 
-      <Modal isOpen={showAdd} onClose={() => setShowAdd(false)} title="Nueva Deuda">
+      <Modal isOpen={showAdd} onClose={() => setShowAdd(false)} title="Nueva deuda">
         <DebtForm onClose={() => setShowAdd(false)} />
       </Modal>
     </PageWrapper>

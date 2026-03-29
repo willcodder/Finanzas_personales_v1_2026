@@ -1,72 +1,75 @@
 import { motion } from 'framer-motion';
-import { LayoutDashboard, ArrowLeftRight, PiggyBank, CreditCard, BarChart2, Moon, Sun } from 'lucide-react';
+import {
+  LayoutDashboard, ArrowLeftRight, PiggyBank, CreditCard,
+  BarChart2, Moon, Sun, Wallet
+} from 'lucide-react';
 import { useStore } from '../../store/useStore';
 import type { TabName } from '../../types';
 
-const tabs: { id: TabName; label: string; icon: React.FC<any> }[] = [
-  { id: 'dashboard', label: 'Inicio', icon: LayoutDashboard },
-  { id: 'transactions', label: 'Movimientos', icon: ArrowLeftRight },
-  { id: 'savings', label: 'Ahorros', icon: PiggyBank },
-  { id: 'debts', label: 'Deudas', icon: CreditCard },
-  { id: 'reports', label: 'Informes', icon: BarChart2 },
+const nav: { id: TabName; label: string; icon: React.FC<any> }[] = [
+  { id: 'dashboard',    label: 'Dashboard',    icon: LayoutDashboard },
+  { id: 'transactions', label: 'Movimientos',  icon: ArrowLeftRight },
+  { id: 'savings',      label: 'Ahorros',      icon: PiggyBank },
+  { id: 'debts',        label: 'Deudas',       icon: CreditCard },
+  { id: 'reports',      label: 'Informes',     icon: BarChart2 },
 ];
 
 export function Sidebar() {
   const { activeTab, setActiveTab, isDark, toggleDark } = useStore();
 
   return (
-    <div className="hidden md:flex fixed left-0 top-0 h-full w-64 flex-col bg-white dark:bg-[#1C1C1E] border-r border-[#E5E5EA] dark:border-[#2C2C2E] z-30">
-      {/* Brand */}
-      <div className="px-6 pt-8 pb-6">
-        <div className="flex items-center gap-3">
-          <div className="w-10 h-10 rounded-2xl bg-[#007AFF] flex items-center justify-center text-xl">
-            💰
+    <aside className="hidden md:flex fixed inset-y-0 left-0 w-56 flex-col bg-sidebar z-40">
+      {/* Logo */}
+      <div className="px-5 pt-6 pb-5 border-b border-white/5">
+        <div className="flex items-center gap-2.5">
+          <div className="w-7 h-7 rounded-lg bg-brand flex items-center justify-center flex-shrink-0">
+            <Wallet size={14} className="text-white" />
           </div>
-          <div>
-            <h1 className="text-base font-bold text-[#1C1C1E] dark:text-white leading-tight">Mi Finanzas</h1>
-            <p className="text-xs text-[#8E8E93]">Control personal</p>
-          </div>
+          <span className="text-white font-semibold text-sm tracking-tight">Mi Finanzas</span>
         </div>
       </div>
 
       {/* Nav */}
-      <nav className="flex-1 px-3 space-y-1">
-        {tabs.map(({ id, label, icon: Icon }) => {
+      <nav className="flex-1 px-3 py-4 space-y-0.5 overflow-y-auto">
+        <p className="text-2xs font-semibold text-white/25 uppercase tracking-widest px-2 mb-3">General</p>
+        {nav.map(({ id, label, icon: Icon }) => {
           const active = activeTab === id;
           return (
-            <motion.button
+            <button
               key={id}
               onClick={() => setActiveTab(id)}
-              whileTap={{ scale: 0.97 }}
-              className={`w-full flex items-center gap-3 px-4 py-3 rounded-2xl text-sm font-medium transition-colors duration-150 ${
+              className={`w-full flex items-center gap-2.5 px-2.5 py-2 rounded-lg text-sm transition-colors duration-100 ${
                 active
-                  ? 'bg-[#007AFF]/10 text-[#007AFF]'
-                  : 'text-[#3A3A3C] dark:text-[#EBEBF5]/70 hover:bg-[#F2F2F7] dark:hover:bg-[#2C2C2E]'
+                  ? 'bg-white/10 text-white'
+                  : 'text-white/45 hover:text-white/80 hover:bg-white/5'
               }`}
             >
-              <Icon size={20} strokeWidth={active ? 2.5 : 1.8} />
-              <span>{label}</span>
+              <Icon size={16} strokeWidth={active ? 2.2 : 1.8} />
+              <span className="font-medium">{label}</span>
               {active && (
                 <motion.div
-                  layoutId="sidebarIndicator"
-                  className="ml-auto w-1.5 h-1.5 rounded-full bg-[#007AFF]"
+                  layoutId="sidebarDot"
+                  className="ml-auto w-1.5 h-1.5 rounded-full bg-brand"
+                  transition={{ type: 'spring', damping: 25, stiffness: 350 }}
                 />
               )}
-            </motion.button>
+            </button>
           );
         })}
       </nav>
 
       {/* Bottom */}
-      <div className="px-3 pb-6">
+      <div className="px-3 pb-5 border-t border-white/5 pt-3">
         <button
           onClick={toggleDark}
-          className="w-full flex items-center gap-3 px-4 py-3 rounded-2xl text-sm font-medium text-[#3A3A3C] dark:text-[#EBEBF5]/70 hover:bg-[#F2F2F7] dark:hover:bg-[#2C2C2E] transition-colors"
+          className="w-full flex items-center gap-2.5 px-2.5 py-2 rounded-lg text-sm text-white/45 hover:text-white/80 hover:bg-white/5 transition-colors"
         >
-          {isDark ? <Sun size={20} strokeWidth={1.8} className="text-[#FFCC00]" /> : <Moon size={20} strokeWidth={1.8} />}
-          <span>{isDark ? 'Modo claro' : 'Modo oscuro'}</span>
+          {isDark
+            ? <Sun size={16} strokeWidth={1.8} className="text-yellow-400" />
+            : <Moon size={16} strokeWidth={1.8} />}
+          <span className="font-medium">{isDark ? 'Modo claro' : 'Modo oscuro'}</span>
         </button>
       </div>
-    </div>
+    </aside>
   );
 }

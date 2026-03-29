@@ -1,32 +1,24 @@
 import React from 'react';
-import { motion } from 'framer-motion';
 
 interface CardProps {
   children: React.ReactNode;
   className?: string;
   onClick?: () => void;
-  animate?: boolean;
+  hover?: boolean;
+  padding?: boolean;
 }
 
-export function Card({ children, className = '', onClick, animate = false }: CardProps) {
-  const base =
-    'bg-white dark:bg-[#1C1C1E] rounded-2xl overflow-hidden';
-
-  if (animate && onClick) {
-    return (
-      <motion.div
-        className={`${base} ${className} cursor-pointer`}
-        onClick={onClick}
-        whileTap={{ scale: 0.97 }}
-        transition={{ duration: 0.1 }}
-      >
-        {children}
-      </motion.div>
-    );
-  }
-
+export function Card({ children, className = '', onClick, hover = false, padding = false }: CardProps) {
   return (
-    <div className={`${base} ${className}`} onClick={onClick}>
+    <div
+      className={`
+        bg-card rounded-xl border border-border
+        ${hover ? 'transition-shadow duration-150 hover:shadow-card-hover cursor-pointer' : ''}
+        ${padding ? 'p-5' : ''}
+        ${className}
+      `}
+      onClick={onClick}
+    >
       {children}
     </div>
   );
