@@ -99,7 +99,7 @@ function GaugeChart({ score }: { score: number }) {
 
   return (
     <div className="flex flex-col items-center">
-      <svg width="220" height="120" viewBox="0 0 220 120">
+      <svg width="100%" height="120" viewBox="0 0 220 120" style={{ maxWidth: 220 }}>
         {Array.from({ length: SEGMENTS }, (_, i) => (
           <path key={i} d={segPath(i)} fill={segColor(i)} />
         ))}

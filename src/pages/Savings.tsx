@@ -260,14 +260,14 @@ export function Savings() {
               const catPct    = percentage(catSaved, catTarget);
               return (
                 <div key={cat}>
-                  <div className="flex items-center justify-between mb-3">
-                    <div className="flex items-center gap-2">
-                      <span className="text-base">{gc?.icon}</span>
-                      <p className="text-xs font-semibold text-ink">{gc?.label}</p>
-                      <span className="text-xs text-muted">· {goals.length} meta{goals.length !== 1 ? 's' : ''}</span>
+                  <div className="flex items-center justify-between mb-3 gap-2 min-w-0">
+                    <div className="flex items-center gap-2 min-w-0">
+                      <span className="text-base flex-shrink-0">{gc?.icon}</span>
+                      <p className="text-xs font-semibold text-ink truncate">{gc?.label}</p>
+                      <span className="text-xs text-muted flex-shrink-0">· {goals.length}</span>
                     </div>
-                    <div className="flex items-center gap-2">
-                      <span className="text-xs text-muted tabular-nums">{formatCompact(catSaved)} / {formatCompact(catTarget)}</span>
+                    <div className="flex items-center gap-2 flex-shrink-0">
+                      <span className="hidden sm:inline text-xs text-muted tabular-nums">{formatCompact(catSaved)} / {formatCompact(catTarget)}</span>
                       <span className="text-xs font-semibold text-brand">{catPct}%</span>
                     </div>
                   </div>
