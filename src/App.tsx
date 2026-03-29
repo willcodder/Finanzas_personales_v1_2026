@@ -9,6 +9,7 @@ import { Savings } from './pages/Savings';
 import { Debts } from './pages/Debts';
 import { Accounts } from './pages/Accounts';
 import { Reports } from './pages/Reports';
+import { Debtors } from './pages/Debtors';
 import './index.css';
 
 function App() {
@@ -27,6 +28,7 @@ function App() {
         {activeTab === 'transactions' && <Transactions key="transactions" />}
         {activeTab === 'savings'      && <Savings      key="savings" />}
         {activeTab === 'debts'        && <Debts        key="debts" />}
+        {activeTab === 'debtors'      && <Debtors      key="debtors" />}
         {activeTab === 'reports'      && <Reports      key="reports" />}
       </AnimatePresence>
       <BottomNav />

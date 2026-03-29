@@ -18,6 +18,7 @@ export interface Account {
   color: CategoryColor;
   icon: string;
   createdAt: string;
+  description?: string;
 }
 
 export interface Category {
@@ -79,4 +80,25 @@ export interface Budget {
   month: string; // YYYY-MM
 }
 
-export type TabName = 'dashboard' | 'transactions' | 'savings' | 'debts' | 'reports' | 'accounts';
+export interface DebtorPayment {
+  id: string;
+  amount: number;
+  date: string;
+  note?: string;
+}
+
+export interface Debtor {
+  id: string;
+  name: string;
+  amount: number;
+  remainingAmount: number;
+  description: string;
+  date: string;
+  dueDate?: string;
+  icon: string;
+  color: CategoryColor;
+  createdAt: string;
+  payments: DebtorPayment[];
+}
+
+export type TabName = 'dashboard' | 'transactions' | 'savings' | 'debts' | 'reports' | 'accounts' | 'debtors';

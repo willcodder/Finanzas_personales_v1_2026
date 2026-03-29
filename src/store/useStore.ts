@@ -1,6 +1,6 @@
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
-import type { Account, Category, Transaction, SavingGoal, Debt, DebtPayment, Budget, TabName } from '../types';
+import type { Account, Category, Transaction, SavingGoal, Debt, DebtPayment, Budget, TabName, Debtor, DebtorPayment } from '../types';
 
 interface AppState {
   // UI
@@ -14,6 +14,7 @@ interface AppState {
   savingGoals: SavingGoal[];
   debts: Debt[];
   budgets: Budget[];
+  debtors: Debtor[];
 
   // Actions
   setActiveTab: (tab: TabName) => void;
@@ -49,6 +50,11 @@ interface AppState {
   // Budgets
   setBudget: (budget: Omit<Budget, 'id'>) => void;
   deleteBudget: (id: string) => void;
+
+  // Debtors
+  addDebtor: (d: Omit<Debtor, 'id' | 'createdAt' | 'payments'>) => void;
+  deleteDebtor: (id: string) => void;
+  addDebtorPayment: (debtorId: string, payment: Omit<DebtorPayment, 'id'>) => void;
 }
 
 const DEFAULT_CATEGORIES: Category[] = [
@@ -82,6 +88,7 @@ export const useStore = create<AppState>()(
       savingGoals: [],
       debts: [],
       budgets: [],
+      debtors: [],
 
       setActiveTab: (tab) => set({ activeTab: tab }),
       toggleDark: () => {
@@ -184,6 +191,29 @@ export const useStore = create<AppState>()(
         }),
       deleteBudget: (id) =>
         set((s) => ({ budgets: s.budgets.filter((b) => b.id !== id) })),
+
+      addDebtor: (d) =>
+        set((s) => ({
+          debtors: [
+            ...s.debtors,
+            { ...d, id: uid(), createdAt: new Date().toISOString(), payments: [] },
+          ],
+        })),
+      deleteDebtor: (id) =>
+        set((s) => ({ debtors: s.debtors.filter((d) => d.id !== id) })),
+      addDebtorPayment: (debtorId, payment) =>
+        set((s) => ({
+          debtors: s.debtors.map((d) => {
+            if (d.id !== debtorId) return d;
+            const newPayment = { ...payment, id: uid() };
+            const newRemaining = Math.max(0, d.remainingAmount - payment.amount);
+            return {
+              ...d,
+              remainingAmount: newRemaining,
+              payments: [...d.payments, newPayment],
+            };
+          }),
+        })),
     }),
     {
       name: 'finanzas-storage',
