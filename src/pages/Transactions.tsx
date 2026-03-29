@@ -23,11 +23,12 @@ function groupByDate(transactions: Transaction[]) {
 }
 
 function AddForm({ onClose }: { onClose: () => void }) {
-  const { categories, addTransaction } = useStore();
+  const { categories, accounts, addTransaction } = useStore();
   const [type, setType] = useState<TransactionType>('expense');
   const [amount, setAmount] = useState('');
   const [description, setDescription] = useState('');
   const [categoryId, setCategoryId] = useState('');
+  const [accountId, setAccountId] = useState('');
   const [date, setDate] = useState(format(new Date(), 'yyyy-MM-dd'));
   const [note, setNote] = useState('');
 
@@ -39,6 +40,7 @@ function AddForm({ onClose }: { onClose: () => void }) {
       type, amount: parseFloat(amount), description, categoryId,
       date: new Date(date + 'T12:00:00').toISOString(),
       note: note || undefined,
+      accountId: accountId || undefined,
     });
     onClose();
   };
@@ -101,6 +103,34 @@ function AddForm({ onClose }: { onClose: () => void }) {
           })}
         </div>
       </div>
+
+      {/* Account selector */}
+      {accounts.length > 0 && (
+        <div className="space-y-1.5">
+          <label className="text-xs font-medium text-ink">Cuenta (opcional)</label>
+          <div className="flex flex-wrap gap-2">
+            <button
+              onClick={() => setAccountId('')}
+              className={`px-2.5 py-1.5 rounded-lg text-xs font-medium border transition-all ${
+                accountId === '' ? 'bg-brand-light border-brand/40 text-brand' : 'border-border bg-surface text-ink hover:bg-border/50'
+              }`}
+            >
+              Sin cuenta
+            </button>
+            {accounts.map(acc => (
+              <button
+                key={acc.id}
+                onClick={() => setAccountId(acc.id)}
+                className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-xs font-medium border transition-all ${
+                  accountId === acc.id ? 'bg-brand-light border-brand/40 text-brand' : 'border-border bg-surface text-ink hover:bg-border/50'
+                }`}
+              >
+                <span>{acc.icon}</span>{acc.name}
+              </button>
+            ))}
+          </div>
+        </div>
+      )}
 
       <Input label="Fecha" type="date" value={date} onChange={e => setDate(e.target.value)} />
       <TextArea label="Nota (opcional)" placeholder="Detalles adicionales..." value={note} onChange={e => setNote(e.target.value)} />

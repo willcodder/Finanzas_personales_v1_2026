@@ -1,13 +1,13 @@
 import { motion } from 'framer-motion';
-import { LayoutDashboard, ArrowLeftRight, PiggyBank, CreditCard, BarChart2 } from 'lucide-react';
+import { LayoutDashboard, ArrowLeftRight, PiggyBank, BarChart2, Landmark } from 'lucide-react';
 import { useStore } from '../../store/useStore';
 import type { TabName } from '../../types';
 
 const tabs: { id: TabName; label: string; icon: React.FC<any> }[] = [
   { id: 'dashboard',    label: 'Inicio',      icon: LayoutDashboard },
+  { id: 'accounts',     label: 'Cuentas',     icon: Landmark },
   { id: 'transactions', label: 'Movimientos', icon: ArrowLeftRight },
   { id: 'savings',      label: 'Ahorros',     icon: PiggyBank },
-  { id: 'debts',        label: 'Deudas',      icon: CreditCard },
   { id: 'reports',      label: 'Informes',    icon: BarChart2 },
 ];
 

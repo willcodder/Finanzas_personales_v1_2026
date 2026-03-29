@@ -1,6 +1,9 @@
 import { useState, useMemo } from 'react';
 import { motion } from 'framer-motion';
-import { TrendingUp, TrendingDown, Plus, Eye, EyeOff, ArrowUpRight, ArrowDownRight, ChevronRight } from 'lucide-react';
+import {
+  TrendingUp, TrendingDown, Plus, Eye, EyeOff,
+  ArrowUpRight, ArrowDownRight, ChevronRight
+} from 'lucide-react';
 import { useStore } from '../store/useStore';
 import { PageWrapper } from '../components/layout/PageWrapper';
 import { Card } from '../components/ui/Card';
@@ -26,7 +29,6 @@ function useStats() {
     const income  = monthTx.filter(t => t.type === 'income').reduce((s, t) => s + t.amount, 0);
     const expense = monthTx.filter(t => t.type === 'expense').reduce((s, t) => s + t.amount, 0);
 
-    // Last 6 months chart data
     const chartData = Array.from({ length: 6 }, (_, i) => {
       const d = subMonths(now, 5 - i);
       const s = startOfMonth(d);
@@ -51,10 +53,123 @@ function useStats() {
         pct: expense > 0 ? (amount / expense) * 100 : 0,
       })).filter(x => x.category);
 
-    return { income, expense, balance: income - expense, chartData, topCategories, monthTx };
+    return { income, expense, balance: income - expense, chartData, topCategories };
   }, [transactions, categories]);
 }
 
+// ── Gauge SVG ─────────────────────────────────────────────────────────────────
+function GaugeChart({ score }: { score: number }) {
+  const cx = 110;
+  const cy = 100;
+  const r  = 76;
+  const SEGMENTS = 20;
+  const GAP      = 4; // degrees gap between segments
+  const ARC      = (180 - GAP * SEGMENTS) / SEGMENTS; // arc per segment
+
+  const filled = Math.round((score / 100) * SEGMENTS);
+
+  // colour: green above 70, yellow above 40, red below
+  const segColor = (i: number) => {
+    if (i >= filled) return '#E5E7EB'; // unfilled
+    if (score >= 70) return '#16A34A';
+    if (score >= 40) return '#D97706';
+    return '#DC2626';
+  };
+
+  const polarToXY = (angleDeg: number, radius: number) => {
+    const rad = ((angleDeg - 180) * Math.PI) / 180;
+    return { x: cx + radius * Math.cos(rad), y: cy + radius * Math.sin(rad) };
+  };
+
+  const segPath = (i: number) => {
+    const startAngle = i * (ARC + GAP);
+    const endAngle   = startAngle + ARC;
+    const inner = r - 14;
+    const p1 = polarToXY(startAngle, r);
+    const p2 = polarToXY(endAngle, r);
+    const p3 = polarToXY(endAngle, inner);
+    const p4 = polarToXY(startAngle, inner);
+    const large = ARC > 180 ? 1 : 0;
+    return `M${p1.x},${p1.y} A${r},${r},0,${large},1,${p2.x},${p2.y}
+            L${p3.x},${p3.y} A${inner},${inner},0,${large},0,${p4.x},${p4.y} Z`;
+  };
+
+  const label = score >= 80 ? 'Excelente' : score >= 65 ? 'Muy buena' : score >= 50 ? 'Buena' : score >= 35 ? 'Regular' : 'A mejorar';
+  const labelColor = score >= 70 ? '#16A34A' : score >= 40 ? '#D97706' : '#DC2626';
+
+  return (
+    <div className="flex flex-col items-center">
+      <svg width="220" height="120" viewBox="0 0 220 120">
+        {Array.from({ length: SEGMENTS }, (_, i) => (
+          <path key={i} d={segPath(i)} fill={segColor(i)} />
+        ))}
+        {/* Score number */}
+        <text x={cx} y={cy - 4} textAnchor="middle" fontSize="32" fontWeight="700" fill="#111111" fontFamily="Inter, sans-serif">
+          {score}
+        </text>
+        <text x={cx} y={cy + 14} textAnchor="middle" fontSize="11" fill="#9CA3AF" fontFamily="Inter, sans-serif">
+          de 100
+        </text>
+      </svg>
+      <p className="text-sm font-semibold mt-1" style={{ color: labelColor }}>{label}</p>
+    </div>
+  );
+}
+
+// ── Score calculator ───────────────────────────────────────────────────────────
+function useFinancialScore() {
+  const { transactions, savingGoals, debts } = useStore();
+  return useMemo(() => {
+    const now   = new Date();
+    const start = startOfMonth(now);
+    const end   = endOfMonth(now);
+    const monthTx = transactions.filter(tx => isWithinInterval(new Date(tx.date), { start, end }));
+    const income  = monthTx.filter(t => t.type === 'income').reduce((s, t) => s + t.amount, 0);
+    const expense = monthTx.filter(t => t.type === 'expense').reduce((s, t) => s + t.amount, 0);
+
+    let score = 0;
+
+    // Savings rate — 40 pts
+    let savingsRate = 0;
+    if (income > 0) {
+      savingsRate = Math.max(0, (income - expense) / income);
+      score += Math.min(40, Math.round((savingsRate / 0.2) * 40));
+    } else {
+      score += 20; // no data yet → neutral
+    }
+
+    // Monthly balance — 30 pts
+    if (income > 0) {
+      score += expense <= income ? 30 : Math.max(0, 30 - Math.round(((expense - income) / income) * 30));
+    } else {
+      score += 15;
+    }
+
+    // Savings goals — 15 pts
+    if (savingGoals.length > 0) score += 10;
+    if (savingGoals.some(g => g.currentAmount >= g.targetAmount)) score += 5;
+
+    // Debt health — 15 pts
+    const totalRemaining = debts.reduce((s, d) => s + d.remainingAmount, 0);
+    if (totalRemaining === 0) {
+      score += 15;
+    } else if (income > 0) {
+      const debtToMonthlyIncome = totalRemaining / (income * 12);
+      if (debtToMonthlyIncome < 0.1)       score += 12;
+      else if (debtToMonthlyIncome < 0.3)  score += 8;
+      else if (debtToMonthlyIncome < 0.5)  score += 4;
+    }
+
+    return {
+      score: Math.min(100, Math.max(0, score)),
+      savingsRatePct: Math.round(savingsRate * 100),
+      hasDebt: totalRemaining > 0,
+      debtFree: totalRemaining === 0,
+    };
+  }, [transactions, savingGoals, debts]);
+}
+
+// ── Tooltip ───────────────────────────────────────────────────────────────────
 function CustomTooltip({ active, payload, label }: any) {
   if (!active || !payload?.length) return null;
   return (
@@ -69,58 +184,32 @@ function CustomTooltip({ active, payload, label }: any) {
   );
 }
 
+// ── Dashboard ─────────────────────────────────────────────────────────────────
 export function Dashboard() {
   const { transactions, categories, savingGoals, debts, setActiveTab } = useStore();
   const [hide, setHide] = useState(false);
   const stats = useStats();
+  const { score, savingsRatePct, debtFree } = useFinancialScore();
 
   const totalBalance = transactions.reduce((s, t) =>
     t.type === 'income' ? s + t.amount : s - t.amount, 0);
 
-  const recentTx = transactions.slice(0, 6);
+  const recentTx   = transactions.slice(0, 6);
   const activeGoals = savingGoals.filter(g => g.currentAmount < g.targetAmount).slice(0, 4);
   const activeDebts = debts.filter(d => d.remainingAmount > 0).slice(0, 3);
 
   const monthLabel = format(new Date(), 'MMMM yyyy', { locale: es });
 
   const kpis = [
-    {
-      label: 'Balance total',
-      value: totalBalance,
-      icon: TrendingUp,
-      color: totalBalance >= 0 ? '#16A34A' : '#DC2626',
-      bg: totalBalance >= 0 ? '#F0FDF4' : '#FEF2F2',
-      trend: null,
-    },
-    {
-      label: 'Ingresos del mes',
-      value: stats.income,
-      icon: ArrowUpRight,
-      color: '#16A34A',
-      bg: '#F0FDF4',
-      trend: null,
-    },
-    {
-      label: 'Gastos del mes',
-      value: stats.expense,
-      icon: ArrowDownRight,
-      color: '#DC2626',
-      bg: '#FEF2F2',
-      trend: null,
-    },
-    {
-      label: 'Neto del mes',
-      value: stats.balance,
-      icon: stats.balance >= 0 ? TrendingUp : TrendingDown,
-      color: stats.balance >= 0 ? '#4F46E5' : '#DC2626',
-      bg: stats.balance >= 0 ? '#EEF2FF' : '#FEF2F2',
-      trend: null,
-    },
+    { label: 'Balance total',    value: totalBalance,   icon: TrendingUp,    color: totalBalance >= 0 ? '#16A34A' : '#DC2626', bg: totalBalance >= 0 ? '#F0FDF4' : '#FEF2F2' },
+    { label: 'Ingresos del mes', value: stats.income,   icon: ArrowUpRight,  color: '#16A34A', bg: '#F0FDF4' },
+    { label: 'Gastos del mes',   value: stats.expense,  icon: ArrowDownRight, color: '#DC2626', bg: '#FEF2F2' },
+    { label: 'Neto del mes',     value: stats.balance,  icon: stats.balance >= 0 ? TrendingUp : TrendingDown, color: stats.balance >= 0 ? '#4F46E5' : '#DC2626', bg: stats.balance >= 0 ? '#EEF2FF' : '#FEF2F2' },
   ];
 
   return (
     <PageWrapper>
-      {/* Top bar */}
+      {/* Header */}
       <div className="flex items-center justify-between px-6 md:px-8 pt-6 pb-5">
         <div>
           <p className="text-xs text-muted font-medium uppercase tracking-wider mb-0.5">
@@ -130,51 +219,86 @@ export function Dashboard() {
         </div>
         <Button onClick={() => setActiveTab('transactions')}>
           <Plus size={15} />
-          Nuevo movimiento
+          <span className="hidden sm:inline">Nuevo movimiento</span>
+          <span className="sm:hidden">Nuevo</span>
         </Button>
       </div>
 
-      <div className="px-6 md:px-8 space-y-5">
-        {/* KPI Grid */}
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-          {kpis.map((k, i) => (
-            <motion.div
-              key={k.label}
-              initial={{ opacity: 0, y: 8 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ delay: i * 0.04 }}
-            >
-              <Card padding>
-                <div className="flex items-start justify-between mb-3">
-                  <p className="text-xs font-medium text-muted">{k.label}</p>
-                  <div className="w-7 h-7 rounded-lg flex items-center justify-center" style={{ backgroundColor: k.bg }}>
-                    <k.icon size={14} style={{ color: k.color }} strokeWidth={2} />
-                  </div>
-                </div>
-                <div className="flex items-center gap-2">
-                  <p className="text-xl font-semibold text-ink tracking-tight">
-                    {hide ? '•••' : formatCompact(k.value)}
+      <div className="px-6 md:px-8 space-y-5 pb-6">
+
+        {/* ── Score + KPIs ────────────────────────────────── */}
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+
+          {/* Gauge card */}
+          <motion.div initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }}>
+            <Card padding className="flex flex-col items-center justify-center">
+              <p className="text-xs font-semibold text-muted uppercase tracking-wider mb-3">Salud financiera</p>
+              <GaugeChart score={score} />
+
+              {/* 3 metrics below gauge */}
+              <div className="w-full mt-4 pt-4 border-t border-border grid grid-cols-3 gap-2 text-center">
+                <div>
+                  <p className="text-2xs text-muted mb-0.5">Ahorro</p>
+                  <p className={`text-sm font-bold tabular-nums ${savingsRatePct >= 20 ? 'text-up' : savingsRatePct >= 10 ? 'text-warn' : 'text-down'}`}>
+                    {savingsRatePct}%
                   </p>
-                  {i === 0 && (
-                    <button onClick={() => setHide(!hide)} className="text-subtle hover:text-muted transition-colors">
-                      {hide ? <Eye size={13} /> : <EyeOff size={13} />}
-                    </button>
-                  )}
                 </div>
-              </Card>
-            </motion.div>
-          ))}
+                <div>
+                  <p className="text-2xs text-muted mb-0.5">Balance</p>
+                  <p className={`text-sm font-bold tabular-nums ${stats.balance >= 0 ? 'text-up' : 'text-down'}`}>
+                    {stats.balance >= 0 ? '+' : ''}{formatCompact(stats.balance)}
+                  </p>
+                </div>
+                <div>
+                  <p className="text-2xs text-muted mb-0.5">Deudas</p>
+                  <p className={`text-sm font-bold ${debtFree ? 'text-up' : 'text-warn'}`}>
+                    {debtFree ? '✓ Libre' : `${activeDebts.length} activa${activeDebts.length !== 1 ? 's' : ''}`}
+                  </p>
+                </div>
+              </div>
+            </Card>
+          </motion.div>
+
+          {/* KPI grid — 2x2 on mobile inside this col; 2-col grid on desktop */}
+          <div className="md:col-span-2 grid grid-cols-2 gap-3">
+            {kpis.map((k, i) => (
+              <motion.div
+                key={k.label}
+                initial={{ opacity: 0, y: 8 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: (i + 1) * 0.04 }}
+              >
+                <Card padding className="h-full">
+                  <div className="flex items-start justify-between mb-3">
+                    <p className="text-xs font-medium text-muted leading-tight">{k.label}</p>
+                    <div className="w-7 h-7 rounded-lg flex items-center justify-center flex-shrink-0" style={{ backgroundColor: k.bg }}>
+                      <k.icon size={14} style={{ color: k.color }} strokeWidth={2} />
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <p className="text-xl font-semibold text-ink tracking-tight">
+                      {hide ? '•••' : formatCompact(k.value)}
+                    </p>
+                    {i === 0 && (
+                      <button onClick={() => setHide(!hide)} className="text-subtle hover:text-muted transition-colors">
+                        {hide ? <Eye size={13} /> : <EyeOff size={13} />}
+                      </button>
+                    )}
+                  </div>
+                </Card>
+              </motion.div>
+            ))}
+          </div>
         </div>
 
-        {/* Main content grid */}
+        {/* ── Chart + Top categories ───────────────────────── */}
         <div className="grid md:grid-cols-3 gap-5">
-          {/* Chart */}
           <Card className="md:col-span-2 p-5">
             <div className="flex items-center justify-between mb-5">
-              <h2 className="section-title">Ingresos vs Gastos</h2>
+              <h2 className="text-sm font-semibold text-ink">Ingresos vs Gastos</h2>
               <span className="text-xs text-subtle">Últimos 6 meses</span>
             </div>
-            <ResponsiveContainer width="100%" height={200}>
+            <ResponsiveContainer width="100%" height={180}>
               <AreaChart data={stats.chartData} margin={{ top: 4, right: 4, left: -20, bottom: 0 }}>
                 <defs>
                   <linearGradient id="gi" x1="0" y1="0" x2="0" y2="1">
@@ -191,25 +315,18 @@ export function Dashboard() {
                 <YAxis tick={{ fontSize: 10, fill: '#9CA3AF' }} axisLine={false} tickLine={false} tickFormatter={v => `$${(v/1000).toFixed(0)}k`} />
                 <Tooltip content={<CustomTooltip />} />
                 <Area type="monotone" dataKey="ingresos" stroke="#16A34A" strokeWidth={2} fill="url(#gi)" dot={false} />
-                <Area type="monotone" dataKey="gastos" stroke="#DC2626" strokeWidth={2} fill="url(#gg)" dot={false} />
+                <Area type="monotone" dataKey="gastos"   stroke="#DC2626" strokeWidth={2} fill="url(#gg)"  dot={false} />
               </AreaChart>
             </ResponsiveContainer>
             <div className="flex gap-4 mt-3">
-              <div className="flex items-center gap-1.5">
-                <div className="w-2.5 h-2.5 rounded-full bg-up" />
-                <span className="text-xs text-muted">Ingresos</span>
-              </div>
-              <div className="flex items-center gap-1.5">
-                <div className="w-2.5 h-2.5 rounded-full bg-down" />
-                <span className="text-xs text-muted">Gastos</span>
-              </div>
+              <div className="flex items-center gap-1.5"><div className="w-2.5 h-2.5 rounded-full bg-up" /><span className="text-xs text-muted">Ingresos</span></div>
+              <div className="flex items-center gap-1.5"><div className="w-2.5 h-2.5 rounded-full bg-down" /><span className="text-xs text-muted">Gastos</span></div>
             </div>
           </Card>
 
-          {/* Top categories */}
           <Card className="p-5">
             <div className="flex items-center justify-between mb-4">
-              <h2 className="section-title">Top Gastos</h2>
+              <h2 className="text-sm font-semibold text-ink">Top Gastos</h2>
               <button onClick={() => setActiveTab('reports')} className="text-xs text-brand font-medium hover:underline">Ver informe</button>
             </div>
             {stats.topCategories.length === 0 ? (
@@ -237,13 +354,12 @@ export function Dashboard() {
           </Card>
         </div>
 
-        {/* Bottom grid */}
-        <div className="grid md:grid-cols-3 gap-5 pb-6">
-          {/* Recent transactions */}
+        {/* ── Recent transactions + right panel ───────────── */}
+        <div className="grid md:grid-cols-3 gap-5">
           <Card className="md:col-span-2">
             <div className="flex items-center justify-between px-5 py-4 border-b border-border">
-              <h2 className="section-title">Movimientos recientes</h2>
-              <button onClick={() => setActiveTab('transactions')} className="btn-ghost flex items-center gap-1 text-xs">
+              <h2 className="text-sm font-semibold text-ink">Movimientos recientes</h2>
+              <button onClick={() => setActiveTab('transactions')} className="flex items-center gap-1 text-xs text-muted hover:text-brand transition-colors">
                 Ver todos <ChevronRight size={12} />
               </button>
             </div>
@@ -280,11 +396,10 @@ export function Dashboard() {
 
           {/* Right panel */}
           <div className="space-y-4">
-            {/* Savings */}
             {activeGoals.length > 0 && (
               <Card>
                 <div className="flex items-center justify-between px-4 py-3 border-b border-border">
-                  <h2 className="section-title">Ahorros</h2>
+                  <h2 className="text-sm font-semibold text-ink">Ahorros</h2>
                   <button onClick={() => setActiveTab('savings')} className="text-xs text-brand font-medium hover:underline">Ver todo</button>
                 </div>
                 <div className="p-4 space-y-3">
@@ -296,7 +411,7 @@ export function Dashboard() {
                         <div className="flex items-center justify-between mb-1.5">
                           <div className="flex items-center gap-2">
                             <span className="text-sm">{goal.icon}</span>
-                            <span className="text-xs font-medium text-ink">{goal.name}</span>
+                            <span className="text-xs font-medium text-ink truncate max-w-[100px]">{goal.name}</span>
                           </div>
                           <span className="text-xs text-muted tabular-nums">{pct}%</span>
                         </div>
@@ -308,11 +423,10 @@ export function Dashboard() {
               </Card>
             )}
 
-            {/* Debts */}
             {activeDebts.length > 0 && (
               <Card>
                 <div className="flex items-center justify-between px-4 py-3 border-b border-border">
-                  <h2 className="section-title">Deudas</h2>
+                  <h2 className="text-sm font-semibold text-ink">Deudas</h2>
                   <button onClick={() => setActiveTab('debts')} className="text-xs text-brand font-medium hover:underline">Ver todo</button>
                 </div>
                 <div className="divide-y divide-border">
@@ -330,7 +444,6 @@ export function Dashboard() {
               </Card>
             )}
 
-            {/* Empty right panel */}
             {activeGoals.length === 0 && activeDebts.length === 0 && (
               <Card padding className="flex flex-col items-center text-center py-8">
                 <span className="text-3xl mb-2">🎯</span>
@@ -339,6 +452,23 @@ export function Dashboard() {
             )}
           </div>
         </div>
+
+        {/* Empty state */}
+        {transactions.length === 0 && (
+          <Card padding className="flex flex-col items-center text-center py-12 mt-2">
+            <div className="w-16 h-16 rounded-2xl bg-brand-light flex items-center justify-center mb-4">
+              <span className="text-3xl">💰</span>
+            </div>
+            <h3 className="font-semibold text-ink text-base mb-1">Bienvenido a Mi Finanzas</h3>
+            <p className="text-sm text-muted max-w-xs mb-5">
+              Empieza registrando tu primer ingreso o gasto para tomar control de tus finanzas.
+            </p>
+            <Button onClick={() => setActiveTab('transactions')}>
+              <Plus size={15} /> Agregar movimiento
+            </Button>
+          </Card>
+        )}
+
       </div>
     </PageWrapper>
   );

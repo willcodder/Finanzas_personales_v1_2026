@@ -1,6 +1,6 @@
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
-import type { Category, Transaction, SavingGoal, Debt, DebtPayment, Budget, TabName } from '../types';
+import type { Account, Category, Transaction, SavingGoal, Debt, DebtPayment, Budget, TabName } from '../types';
 
 interface AppState {
   // UI
@@ -8,6 +8,7 @@ interface AppState {
   isDark: boolean;
 
   // Data
+  accounts: Account[];
   categories: Category[];
   transactions: Transaction[];
   savingGoals: SavingGoal[];
@@ -17,6 +18,11 @@ interface AppState {
   // Actions
   setActiveTab: (tab: TabName) => void;
   toggleDark: () => void;
+
+  // Accounts
+  addAccount: (acc: Omit<Account, 'id' | 'createdAt'>) => void;
+  updateAccount: (id: string, acc: Partial<Account>) => void;
+  deleteAccount: (id: string) => void;
 
   // Categories
   addCategory: (cat: Omit<Category, 'id'>) => void;
@@ -70,6 +76,7 @@ export const useStore = create<AppState>()(
     (set, get) => ({
       activeTab: 'dashboard',
       isDark: false,
+      accounts: [],
       categories: DEFAULT_CATEGORIES,
       transactions: [],
       savingGoals: [],
@@ -86,6 +93,13 @@ export const useStore = create<AppState>()(
           document.documentElement.classList.remove('dark');
         }
       },
+
+      addAccount: (acc) =>
+        set((s) => ({ accounts: [...s.accounts, { ...acc, id: uid(), createdAt: new Date().toISOString() }] })),
+      updateAccount: (id, acc) =>
+        set((s) => ({ accounts: s.accounts.map((a) => (a.id === id ? { ...a, ...acc } : a)) })),
+      deleteAccount: (id) =>
+        set((s) => ({ accounts: s.accounts.filter((a) => a.id !== id) })),
 
       addCategory: (cat) =>
         set((s) => ({ categories: [...s.categories, { ...cat, id: uid() }] })),

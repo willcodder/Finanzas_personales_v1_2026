@@ -7,6 +7,7 @@ import { Dashboard } from './pages/Dashboard';
 import { Transactions } from './pages/Transactions';
 import { Savings } from './pages/Savings';
 import { Debts } from './pages/Debts';
+import { Accounts } from './pages/Accounts';
 import { Reports } from './pages/Reports';
 import './index.css';
 
@@ -22,6 +23,7 @@ function App() {
       <Sidebar />
       <AnimatePresence mode="wait">
         {activeTab === 'dashboard'    && <Dashboard    key="dashboard" />}
+        {activeTab === 'accounts'     && <Accounts     key="accounts" />}
         {activeTab === 'transactions' && <Transactions key="transactions" />}
         {activeTab === 'savings'      && <Savings      key="savings" />}
         {activeTab === 'debts'        && <Debts        key="debts" />}

@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Plus, Trash2, Target, CheckCircle2 } from 'lucide-react';
 import { useStore } from '../store/useStore';
-import type { SavingGoal, CategoryColor } from '../types';
+import type { SavingGoal, CategoryColor, GoalCategory } from '../types';
 import { PageWrapper } from '../components/layout/PageWrapper';
 import { Card } from '../components/ui/Card';
 import { Modal } from '../components/ui/Modal';
@@ -14,14 +14,27 @@ import { colorMap, colorOptions } from '../utils/colors';
 
 const ICONS = ['🎯','🏠','🚗','✈️','💻','📱','🎓','💍','🌴','🏖️','💪','🎸','📷','🛒','🏋️','🎉','🌍','🎨'];
 
+const GOAL_CATEGORIES: { value: GoalCategory; label: string; icon: string }[] = [
+  { value: 'emergency',  label: 'Fondo de emergencia', icon: '🛡️' },
+  { value: 'travel',     label: 'Viajes',               icon: '✈️' },
+  { value: 'home',       label: 'Hogar',                icon: '🏠' },
+  { value: 'education',  label: 'Educación',            icon: '🎓' },
+  { value: 'vehicle',    label: 'Vehículo',             icon: '🚗' },
+  { value: 'tech',       label: 'Tecnología',           icon: '💻' },
+  { value: 'health',     label: 'Salud',                icon: '💪' },
+  { value: 'retirement', label: 'Retiro',               icon: '🌴' },
+  { value: 'other',      label: 'Otros',                icon: '🎯' },
+];
+
 function GoalForm({ onClose, initial }: { onClose: () => void; initial?: SavingGoal }) {
   const { addSavingGoal, updateSavingGoal } = useStore();
-  const [name, setName]               = useState(initial?.name ?? '');
-  const [targetAmount, setTargetAmount] = useState(initial?.targetAmount?.toString() ?? '');
-  const [currentAmount, setCurrentAmount] = useState(initial?.currentAmount?.toString() ?? '0');
-  const [deadline, setDeadline]       = useState(initial?.deadline?.split('T')[0] ?? '');
-  const [icon, setIcon]               = useState(initial?.icon ?? '🎯');
-  const [color, setColor]             = useState<CategoryColor>(initial?.color ?? 'indigo');
+  const [name, setName]                     = useState(initial?.name ?? '');
+  const [targetAmount, setTargetAmount]     = useState(initial?.targetAmount?.toString() ?? '');
+  const [currentAmount, setCurrentAmount]   = useState(initial?.currentAmount?.toString() ?? '0');
+  const [deadline, setDeadline]             = useState(initial?.deadline?.split('T')[0] ?? '');
+  const [icon, setIcon]                     = useState(initial?.icon ?? '🎯');
+  const [color, setColor]                   = useState<CategoryColor>(initial?.color ?? 'indigo');
+  const [goalCategory, setGoalCategory]     = useState<GoalCategory>(initial?.goalCategory ?? 'other');
 
   const submit = () => {
     if (!name || !targetAmount) return;
@@ -29,7 +42,7 @@ function GoalForm({ onClose, initial }: { onClose: () => void; initial?: SavingG
       name, targetAmount: parseFloat(targetAmount),
       currentAmount: parseFloat(currentAmount) || 0,
       deadline: deadline ? new Date(deadline + 'T12:00:00').toISOString() : undefined,
-      icon, color,
+      icon, color, goalCategory,
     };
     if (initial) updateSavingGoal(initial.id, data);
     else addSavingGoal(data);
@@ -38,7 +51,25 @@ function GoalForm({ onClose, initial }: { onClose: () => void; initial?: SavingG
 
   return (
     <div className="p-5 space-y-4">
-      {/* Icon */}
+      <div className="space-y-1.5">
+        <label className="text-xs font-medium text-ink">Tipo de objetivo</label>
+        <div className="flex flex-wrap gap-2">
+          {GOAL_CATEGORIES.map(gc => (
+            <button
+              key={gc.value}
+              onClick={() => setGoalCategory(gc.value)}
+              className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-xs font-medium border transition-all ${
+                goalCategory === gc.value
+                  ? 'bg-brand-light border-brand/40 text-brand'
+                  : 'border-border bg-surface text-ink hover:bg-border/50'
+              }`}
+            >
+              <span>{gc.icon}</span>{gc.label}
+            </button>
+          ))}
+        </div>
+      </div>
+
       <div className="space-y-1.5">
         <label className="text-xs font-medium text-ink">Icono</label>
         <div className="flex flex-wrap gap-1.5">
@@ -52,14 +83,13 @@ function GoalForm({ onClose, initial }: { onClose: () => void; initial?: SavingG
         </div>
       </div>
 
-      {/* Color */}
       <div className="space-y-1.5">
         <label className="text-xs font-medium text-ink">Color</label>
         <div className="flex gap-2 flex-wrap">
           {colorOptions.map(c => (
             <button key={c} onClick={() => setColor(c)}
               className={`w-7 h-7 rounded-full transition-transform ${color === c ? 'scale-110 ring-2 ring-offset-2 ring-offset-card' : ''}`}
-              style={{ backgroundColor: colorMap[c].hex, outlineColor: colorMap[c].hex }}
+              style={{ backgroundColor: colorMap[c].hex }}
             />
           ))}
         </div>
@@ -102,17 +132,61 @@ function AddFundsForm({ goal, onClose }: { goal: SavingGoal; onClose: () => void
   );
 }
 
+function GoalCard({ goal, onAddFunds, onDelete }: { goal: SavingGoal; onAddFunds: () => void; onDelete: () => void }) {
+  const c   = colorMap[goal.color];
+  const pct = percentage(goal.currentAmount, goal.targetAmount);
+  return (
+    <Card padding className="group relative">
+      <div className="absolute top-3 right-3 flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+        <button onClick={onAddFunds} className="h-7 px-2.5 rounded-md bg-up-light text-up text-xs font-medium hover:bg-green-100 transition-colors">
+          + Añadir
+        </button>
+        <button onClick={onDelete} className="w-7 h-7 rounded-md flex items-center justify-center text-subtle hover:text-down hover:bg-down-light transition-colors">
+          <Trash2 size={12} />
+        </button>
+      </div>
+
+      <div className="flex items-start gap-3 mb-4">
+        <div className="w-10 h-10 rounded-lg flex items-center justify-center text-xl flex-shrink-0" style={{ backgroundColor: `${c.hex}15` }}>
+          {goal.icon}
+        </div>
+        <div className="min-w-0 flex-1 pr-16">
+          <p className="font-semibold text-ink text-sm">{goal.name}</p>
+          {goal.deadline && (
+            <p className="text-xs text-subtle mt-0.5">📅 {formatDate(goal.deadline)}</p>
+          )}
+        </div>
+      </div>
+
+      <ProgressBar value={pct} color={c.hex} height={5} className="mb-2" />
+      <div className="flex justify-between">
+        <span className="text-xs text-muted tabular-nums">{formatCompact(goal.currentAmount)}</span>
+        <span className="text-xs font-semibold tabular-nums" style={{ color: c.hex }}>{pct}%</span>
+        <span className="text-xs text-muted tabular-nums">{formatCompact(goal.targetAmount)}</span>
+      </div>
+    </Card>
+  );
+}
+
 export function Savings() {
   const { savingGoals, deleteSavingGoal } = useStore();
-  const [showAdd, setShowAdd]   = useState(false);
-  const [addFunds, setAddFunds] = useState<SavingGoal | null>(null);
-  const [deleteId, setDeleteId] = useState<string | null>(null);
+  const [showAdd, setShowAdd]     = useState(false);
+  const [addFunds, setAddFunds]   = useState<SavingGoal | null>(null);
+  const [deleteId, setDeleteId]   = useState<string | null>(null);
+  const [filterCat, setFilterCat] = useState<GoalCategory | 'all'>('all');
 
   const active    = savingGoals.filter(g => g.currentAmount < g.targetAmount);
   const completed = savingGoals.filter(g => g.currentAmount >= g.targetAmount);
   const totalSaved  = savingGoals.reduce((s, g) => s + g.currentAmount, 0);
   const totalTarget = savingGoals.reduce((s, g) => s + g.targetAmount, 0);
   const overallPct  = percentage(totalSaved, totalTarget);
+
+  const activeCats = Array.from(new Set(active.map(g => g.goalCategory)));
+
+  const groupedActive: { cat: GoalCategory; goals: SavingGoal[] }[] =
+    filterCat === 'all'
+      ? activeCats.map(cat => ({ cat, goals: active.filter(g => g.goalCategory === cat) }))
+      : [{ cat: filterCat, goals: active.filter(g => g.goalCategory === filterCat) }];
 
   return (
     <PageWrapper>
@@ -122,7 +196,6 @@ export function Savings() {
       </div>
 
       <div className="px-6 md:px-8 pb-6 space-y-5">
-        {/* Summary bar */}
         {savingGoals.length > 0 && (
           <Card padding>
             <div className="flex flex-col md:flex-row md:items-center gap-4">
@@ -151,58 +224,76 @@ export function Savings() {
           </Card>
         )}
 
-        {/* Active goals */}
-        {active.length > 0 && (
-          <div>
-            <p className="text-xs font-semibold text-muted uppercase tracking-wider mb-3">En progreso · {active.length}</p>
-            <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-3">
-              <AnimatePresence>
-                {active.map((goal, i) => {
-                  const c = colorMap[goal.color];
-                  const pct = percentage(goal.currentAmount, goal.targetAmount);
-                  return (
-                    <motion.div key={goal.id} layout initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, scale: 0.96 }} transition={{ delay: i * 0.04 }}>
-                      <Card padding className="group relative">
-                        {/* Actions */}
-                        <div className="absolute top-3 right-3 flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-                          <button onClick={() => setAddFunds(goal)} className="h-7 px-2.5 rounded-md bg-up-light text-up text-xs font-medium hover:bg-green-100 transition-colors">
-                            + Añadir
-                          </button>
-                          <button onClick={() => setDeleteId(goal.id)} className="w-7 h-7 rounded-md flex items-center justify-center text-subtle hover:text-down hover:bg-down-light transition-colors">
-                            <Trash2 size={12} />
-                          </button>
-                        </div>
-
-                        {/* Icon + name */}
-                        <div className="flex items-start gap-3 mb-4">
-                          <div className="w-10 h-10 rounded-lg flex items-center justify-center text-xl flex-shrink-0" style={{ backgroundColor: `${c.hex}15` }}>
-                            {goal.icon}
-                          </div>
-                          <div className="min-w-0 flex-1 pr-16">
-                            <p className="font-semibold text-ink text-sm">{goal.name}</p>
-                            {goal.deadline && (
-                              <p className="text-xs text-subtle mt-0.5">📅 {formatDate(goal.deadline)}</p>
-                            )}
-                          </div>
-                        </div>
-
-                        {/* Progress */}
-                        <ProgressBar value={pct} color={c.hex} height={5} className="mb-2" />
-                        <div className="flex justify-between">
-                          <span className="text-xs text-muted tabular-nums">{formatCompact(goal.currentAmount)}</span>
-                          <span className="text-xs font-semibold tabular-nums" style={{ color: c.hex }}>{pct}%</span>
-                          <span className="text-xs text-muted tabular-nums">{formatCompact(goal.targetAmount)}</span>
-                        </div>
-                      </Card>
-                    </motion.div>
-                  );
-                })}
-              </AnimatePresence>
-            </div>
+        {activeCats.length > 1 && (
+          <div className="flex flex-wrap gap-2">
+            <button
+              onClick={() => setFilterCat('all')}
+              className={`px-3 py-1.5 rounded-lg text-xs font-medium border transition-all ${
+                filterCat === 'all' ? 'bg-brand-light border-brand/40 text-brand' : 'border-border bg-surface text-muted hover:text-ink'
+              }`}
+            >
+              Todas
+            </button>
+            {activeCats.map(cat => {
+              const gc = GOAL_CATEGORIES.find(g => g.value === cat);
+              return (
+                <button
+                  key={cat}
+                  onClick={() => setFilterCat(cat)}
+                  className={`flex items-center gap-1 px-3 py-1.5 rounded-lg text-xs font-medium border transition-all ${
+                    filterCat === cat ? 'bg-brand-light border-brand/40 text-brand' : 'border-border bg-surface text-muted hover:text-ink'
+                  }`}
+                >
+                  <span>{gc?.icon}</span>{gc?.label}
+                </button>
+              );
+            })}
           </div>
         )}
 
-        {/* Completed */}
+        {active.length > 0 && (
+          <div className="space-y-6">
+            {groupedActive.map(({ cat, goals }) => {
+              const gc        = GOAL_CATEGORIES.find(g => g.value === cat);
+              const catSaved  = goals.reduce((s, g) => s + g.currentAmount, 0);
+              const catTarget = goals.reduce((s, g) => s + g.targetAmount, 0);
+              const catPct    = percentage(catSaved, catTarget);
+              return (
+                <div key={cat}>
+                  <div className="flex items-center justify-between mb-3">
+                    <div className="flex items-center gap-2">
+                      <span className="text-base">{gc?.icon}</span>
+                      <p className="text-xs font-semibold text-ink">{gc?.label}</p>
+                      <span className="text-xs text-muted">· {goals.length} meta{goals.length !== 1 ? 's' : ''}</span>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <span className="text-xs text-muted tabular-nums">{formatCompact(catSaved)} / {formatCompact(catTarget)}</span>
+                      <span className="text-xs font-semibold text-brand">{catPct}%</span>
+                    </div>
+                  </div>
+                  <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-3">
+                    <AnimatePresence>
+                      {goals.map((goal, i) => (
+                        <motion.div
+                          key={goal.id} layout
+                          initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }}
+                          exit={{ opacity: 0, scale: 0.96 }} transition={{ delay: i * 0.04 }}
+                        >
+                          <GoalCard
+                            goal={goal}
+                            onAddFunds={() => setAddFunds(goal)}
+                            onDelete={() => setDeleteId(goal.id)}
+                          />
+                        </motion.div>
+                      ))}
+                    </AnimatePresence>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        )}
+
         {completed.length > 0 && (
           <div>
             <p className="text-xs font-semibold text-muted uppercase tracking-wider mb-3">Completadas · {completed.length}</p>
@@ -232,7 +323,6 @@ export function Savings() {
           </div>
         )}
 
-        {/* Empty */}
         {savingGoals.length === 0 && (
           <Card padding className="flex flex-col items-center text-center py-16">
             <div className="w-14 h-14 rounded-2xl bg-brand-light flex items-center justify-center mb-4">

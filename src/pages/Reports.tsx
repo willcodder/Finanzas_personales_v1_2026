@@ -4,6 +4,7 @@ import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
   PieChart, Pie, Cell, AreaChart, Area
 } from 'recharts';
+import { TrendingUp, TrendingDown, Minus } from 'lucide-react';
 import { useStore } from '../store/useStore';
 import { PageWrapper } from '../components/layout/PageWrapper';
 import { Card } from '../components/ui/Card';
@@ -45,20 +46,46 @@ export function Reports() {
     });
   }, [transactions, period]);
 
-  const categoryData = useMemo(() => {
-    const now   = new Date();
-    const start = startOfMonth(now);
-    const end   = endOfMonth(now);
-    const exps  = transactions.filter(tx => tx.type === 'expense' && isWithinInterval(new Date(tx.date), { start, end }));
-    const total = exps.reduce((s, t) => s + t.amount, 0);
-    const byCat: Record<string, number> = {};
-    exps.forEach(tx => { byCat[tx.categoryId] = (byCat[tx.categoryId] || 0) + tx.amount; });
-    return Object.entries(byCat)
-      .map(([id, amount]) => {
-        const cat = categories.find(c => c.id === id);
-        return { name: cat?.name ?? 'Otro', value: amount, color: cat ? colorMap[cat.color].hex : '#9CA3AF', icon: cat?.icon ?? '💸', pct: total > 0 ? (amount / total) * 100 : 0 };
+  const { categoryData, categoryTrend } = useMemo(() => {
+    const now       = new Date();
+    const curStart  = startOfMonth(now);
+    const curEnd    = endOfMonth(now);
+    const prevStart = startOfMonth(subMonths(now, 1));
+    const prevEnd   = endOfMonth(subMonths(now, 1));
+
+    const curExps  = transactions.filter(tx => tx.type === 'expense' && isWithinInterval(new Date(tx.date), { start: curStart, end: curEnd }));
+    const prevExps = transactions.filter(tx => tx.type === 'expense' && isWithinInterval(new Date(tx.date), { start: prevStart, end: prevEnd }));
+
+    const total = curExps.reduce((s, t) => s + t.amount, 0);
+
+    const byCatCur:  Record<string, number> = {};
+    const byCatPrev: Record<string, number> = {};
+    curExps.forEach(tx  => { byCatCur[tx.categoryId]  = (byCatCur[tx.categoryId]  || 0) + tx.amount; });
+    prevExps.forEach(tx => { byCatPrev[tx.categoryId] = (byCatPrev[tx.categoryId] || 0) + tx.amount; });
+
+    const all = Array.from(new Set([...Object.keys(byCatCur), ...Object.keys(byCatPrev)]));
+    const withTrend = all
+      .map(id => {
+        const cat   = categories.find(c => c.id === id);
+        const cur   = byCatCur[id]  || 0;
+        const prev  = byCatPrev[id] || 0;
+        const delta = prev > 0 ? ((cur - prev) / prev) * 100 : cur > 0 ? 100 : 0;
+        return {
+          name: cat?.name ?? 'Otro',
+          value: cur,
+          prevValue: prev,
+          color: cat ? colorMap[cat.color].hex : '#9CA3AF',
+          icon: cat?.icon ?? '💸',
+          pct: total > 0 ? (cur / total) * 100 : 0,
+          delta,
+        };
       })
-      .sort((a, b) => b.value - a.value).slice(0, 8);
+      .sort((a, b) => b.value - a.value);
+
+    return {
+      categoryData: withTrend.filter(d => d.value > 0).slice(0, 8),
+      categoryTrend: withTrend,
+    };
   }, [transactions, categories]);
 
   const totalIncome  = monthlyData.reduce((s, d) => s + d.Ingresos, 0);
@@ -67,6 +94,10 @@ export function Reports() {
   const savingsRate  = totalIncome > 0 ? ((totalIncome - totalExpense) / totalIncome) * 100 : 0;
 
   const noData = transactions.length === 0;
+
+  const topSpend   = categoryTrend.filter(d => d.value > 0).slice(0, 5);
+  const biggestInc = [...categoryTrend].filter(d => d.delta > 5 && d.value > 0).sort((a, b) => b.delta - a.delta).slice(0, 3);
+  const biggestDec = [...categoryTrend].filter(d => d.delta < -5 && d.prevValue > 0).sort((a, b) => a.delta - b.delta).slice(0, 3);
 
   return (
     <PageWrapper>
@@ -113,7 +144,6 @@ export function Reports() {
 
             {/* Main charts */}
             <div className="grid md:grid-cols-3 gap-5">
-              {/* Bar chart */}
               <Card className="md:col-span-2 p-5">
                 <h2 className="text-sm font-semibold text-ink mb-5">Ingresos vs Gastos por mes</h2>
                 <ResponsiveContainer width="100%" height={220}>
@@ -132,7 +162,6 @@ export function Reports() {
                 </div>
               </Card>
 
-              {/* Pie chart */}
               <Card className="p-5">
                 <h2 className="text-sm font-semibold text-ink mb-4">Gastos por categoría</h2>
                 {categoryData.length === 0 ? (
@@ -181,35 +210,97 @@ export function Reports() {
               </ResponsiveContainer>
             </Card>
 
-            {/* Category table */}
-            {categoryData.length > 0 && (
-              <Card>
-                <div className="px-5 py-3.5 border-b border-border">
-                  <h2 className="text-sm font-semibold text-ink">Detalle por categoría — mes actual</h2>
-                </div>
-                <div className="hidden md:grid grid-cols-[1fr_120px_80px] gap-4 px-5 py-2 bg-surface border-b border-border text-2xs font-semibold text-subtle uppercase tracking-wider">
-                  <span>Categoría</span><span className="text-right">Importe</span><span className="text-right">%</span>
-                </div>
-                {categoryData.map((cat, i) => (
-                  <div key={cat.name} className={`flex md:grid md:grid-cols-[1fr_120px_80px] gap-2 md:gap-4 items-center px-5 py-3 hover:bg-surface transition-colors ${i < categoryData.length - 1 ? 'border-b border-border' : ''}`}>
-                    <div className="flex items-center gap-2.5">
-                      <div className="w-7 h-7 rounded-lg flex items-center justify-center text-sm flex-shrink-0" style={{ backgroundColor: `${cat.color}15` }}>
-                        {cat.icon}
-                      </div>
-                      <div className="flex-1 min-w-0">
-                        <p className="text-sm font-medium text-ink">{cat.name}</p>
-                        <div className="mt-1">
-                          <div className="h-1 rounded-full bg-border overflow-hidden w-full md:w-32">
-                            <div className="h-full rounded-full" style={{ width: `${cat.pct}%`, backgroundColor: cat.color }} />
+            {/* Category ranking */}
+            {topSpend.length > 0 && (
+              <div className="grid md:grid-cols-3 gap-5">
+                <Card className="md:col-span-2">
+                  <div className="px-5 py-3.5 border-b border-border flex items-center justify-between">
+                    <h2 className="text-sm font-semibold text-ink">Ranking de gastos — mes actual</h2>
+                    <span className="text-xs text-muted">vs mes anterior</span>
+                  </div>
+                  <div className="hidden md:grid grid-cols-[1fr_110px_90px_70px] gap-4 px-5 py-2 bg-surface border-b border-border text-2xs font-semibold text-subtle uppercase tracking-wider">
+                    <span>Categoría</span>
+                    <span className="text-right">Importe</span>
+                    <span className="text-right">% del total</span>
+                    <span className="text-right">Tendencia</span>
+                  </div>
+                  {topSpend.map((cat, i) => {
+                    const isUp   = cat.delta > 5;
+                    const isDown = cat.delta < -5;
+                    return (
+                      <div key={cat.name} className={`flex md:grid md:grid-cols-[1fr_110px_90px_70px] gap-2 md:gap-4 items-center px-5 py-3 hover:bg-surface transition-colors ${i < topSpend.length - 1 ? 'border-b border-border' : ''}`}>
+                        <div className="flex items-center gap-2.5">
+                          <div className="w-5 h-5 rounded text-xs flex items-center justify-center font-semibold text-muted bg-surface border border-border flex-shrink-0">
+                            {i + 1}
+                          </div>
+                          <div className="w-7 h-7 rounded-lg flex items-center justify-center text-sm flex-shrink-0" style={{ backgroundColor: `${cat.color}15` }}>
+                            {cat.icon}
+                          </div>
+                          <div className="flex-1 min-w-0">
+                            <p className="text-sm font-medium text-ink truncate">{cat.name}</p>
+                            <div className="h-1 rounded-full bg-border overflow-hidden w-full md:w-32 mt-1">
+                              <div className="h-full rounded-full" style={{ width: `${cat.pct}%`, backgroundColor: cat.color }} />
+                            </div>
                           </div>
                         </div>
+                        <p className="text-sm font-semibold text-down tabular-nums md:text-right">{formatCompact(cat.value)}</p>
+                        <p className="text-sm text-muted tabular-nums md:text-right">{cat.pct.toFixed(1)}%</p>
+                        <div className="flex items-center gap-1 md:justify-end">
+                          {isUp   && <TrendingUp  size={13} className="text-down flex-shrink-0" />}
+                          {isDown && <TrendingDown size={13} className="text-up flex-shrink-0" />}
+                          {!isUp && !isDown && <Minus size={13} className="text-muted flex-shrink-0" />}
+                          <span className={`text-xs font-medium tabular-nums ${isUp ? 'text-down' : isDown ? 'text-up' : 'text-muted'}`}>
+                            {cat.delta > 0 ? '+' : ''}{cat.delta.toFixed(0)}%
+                          </span>
+                        </div>
                       </div>
-                    </div>
-                    <p className="text-sm font-semibold text-down tabular-nums md:text-right">{formatCompact(cat.value)}</p>
-                    <p className="text-sm text-muted tabular-nums md:text-right">{cat.pct.toFixed(1)}%</p>
-                  </div>
-                ))}
-              </Card>
+                    );
+                  })}
+                </Card>
+
+                <div className="space-y-3">
+                  {biggestInc.length > 0 && (
+                    <Card className="p-4">
+                      <div className="flex items-center gap-2 mb-3">
+                        <TrendingUp size={14} className="text-down" />
+                        <h3 className="text-xs font-semibold text-ink">Mayor subida</h3>
+                      </div>
+                      <div className="space-y-2.5">
+                        {biggestInc.map(cat => (
+                          <div key={cat.name} className="flex items-center gap-2">
+                            <span className="text-sm">{cat.icon}</span>
+                            <p className="text-xs text-ink flex-1 truncate">{cat.name}</p>
+                            <span className="text-xs font-semibold text-down tabular-nums">+{cat.delta.toFixed(0)}%</span>
+                          </div>
+                        ))}
+                      </div>
+                    </Card>
+                  )}
+                  {biggestDec.length > 0 && (
+                    <Card className="p-4">
+                      <div className="flex items-center gap-2 mb-3">
+                        <TrendingDown size={14} className="text-up" />
+                        <h3 className="text-xs font-semibold text-ink">Mayor bajada</h3>
+                      </div>
+                      <div className="space-y-2.5">
+                        {biggestDec.map(cat => (
+                          <div key={cat.name} className="flex items-center gap-2">
+                            <span className="text-sm">{cat.icon}</span>
+                            <p className="text-xs text-ink flex-1 truncate">{cat.name}</p>
+                            <span className="text-xs font-semibold text-up tabular-nums">{cat.delta.toFixed(0)}%</span>
+                          </div>
+                        ))}
+                      </div>
+                    </Card>
+                  )}
+                  {biggestInc.length === 0 && biggestDec.length === 0 && (
+                    <Card className="p-4 flex flex-col items-center text-center py-8">
+                      <Minus size={20} className="text-muted mb-2" />
+                      <p className="text-xs text-muted">Sin variaciones significativas respecto al mes anterior</p>
+                    </Card>
+                  )}
+                </div>
+              </div>
             )}
           </>
         )}
