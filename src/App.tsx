@@ -10,6 +10,7 @@ import { Debts } from './pages/Debts';
 import { Accounts } from './pages/Accounts';
 import { Reports } from './pages/Reports';
 import { Debtors } from './pages/Debtors';
+import { QuickAdd } from './components/ui/QuickAdd';
 import './index.css';
 
 function App() {
@@ -31,6 +32,7 @@ function App() {
         {activeTab === 'debtors'      && <Debtors      key="debtors" />}
         {activeTab === 'reports'      && <Reports      key="reports" />}
       </AnimatePresence>
+      <QuickAdd />
       <BottomNav />
     </div>
   );

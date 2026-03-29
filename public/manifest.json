@@ -1,0 +1,29 @@
+{
+  "name": "Mi Finanzas",
+  "short_name": "Finanzas",
+  "description": "Control de tus finanzas personales",
+  "start_url": "/Finanzas_personales_v1_2026/",
+  "scope": "/Finanzas_personales_v1_2026/",
+  "display": "standalone",
+  "orientation": "portrait",
+  "background_color": "#F7F7F8",
+  "theme_color": "#4F46E5",
+  "icons": [
+    { "src": "/Finanzas_personales_v1_2026/icon-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any maskable" },
+    { "src": "/Finanzas_personales_v1_2026/icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any maskable" }
+  ],
+  "shortcuts": [
+    {
+      "name": "Gasto rápido",
+      "short_name": "Gasto",
+      "url": "/Finanzas_personales_v1_2026/?q=expense",
+      "icons": [{ "src": "/Finanzas_personales_v1_2026/icon-192.png", "sizes": "192x192" }]
+    },
+    {
+      "name": "Ingreso rápido",
+      "short_name": "Ingreso",
+      "url": "/Finanzas_personales_v1_2026/?q=income",
+      "icons": [{ "src": "/Finanzas_personales_v1_2026/icon-192.png", "sizes": "192x192" }]
+    }
+  ]
+}
