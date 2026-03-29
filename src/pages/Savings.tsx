@@ -188,7 +188,7 @@ export function Savings() {
 
   return (
     <PageWrapper>
-      <div className="px-5 pt-14 pb-4">
+      <div className="px-5 md:px-8 pt-14 md:pt-10 pb-4">
         <h1 className="text-2xl font-bold text-[#1C1C1E] dark:text-white tracking-tight mb-5">
           Metas de Ahorro
         </h1>
@@ -219,7 +219,7 @@ export function Savings() {
         {active.length > 0 && (
           <div className="mb-5">
             <h2 className="text-base font-semibold text-[#1C1C1E] dark:text-white mb-3">En progreso</h2>
-            <div className="space-y-3">
+            <div className="grid md:grid-cols-2 gap-3">
               <AnimatePresence>
                 {active.map((goal, i) => {
                   const colors = colorMap[goal.color];

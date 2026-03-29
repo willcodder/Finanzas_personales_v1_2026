@@ -182,7 +182,7 @@ export function Transactions() {
   return (
     <PageWrapper>
       {/* Header */}
-      <div className="px-5 pt-14 pb-4">
+      <div className="px-5 md:px-8 pt-14 md:pt-10 pb-4">
         <h1 className="text-2xl font-bold text-[#1C1C1E] dark:text-white tracking-tight mb-4">
           Movimientos
         </h1>
@@ -246,7 +246,7 @@ export function Transactions() {
       </div>
 
       {/* Transactions list */}
-      <div className="px-5 space-y-5">
+      <div className="px-5 md:px-8 space-y-5">
         {grouped.length === 0 ? (
           <div className="flex flex-col items-center text-center py-16">
             <span className="text-5xl mb-4">📋</span>

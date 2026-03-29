@@ -26,9 +26,6 @@ body {
 
 #root {
   min-height: 100vh;
-  max-width: 430px;
-  margin: 0 auto;
-  position: relative;
   background-color: #F2F2F7;
 }
 
@@ -45,7 +42,6 @@ body {
   scrollbar-width: none;
 }
 
-/* Custom scrollbar */
 ::-webkit-scrollbar {
   width: 0px;
 }
@@ -63,12 +59,10 @@ body {
   -webkit-backdrop-filter: blur(20px);
 }
 
-/* Input styles */
 input, textarea, select {
   outline: none;
 }
 
-/* Number input arrows hide */
 input[type=number]::-webkit-inner-spin-button,
 input[type=number]::-webkit-outer-spin-button {
   -webkit-appearance: none;

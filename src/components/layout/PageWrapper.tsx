@@ -9,7 +9,7 @@ interface PageWrapperProps {
 export function PageWrapper({ children, className = '' }: PageWrapperProps) {
   return (
     <motion.div
-      className={`min-h-screen pb-24 ${className}`}
+      className={`min-h-screen pb-24 md:pb-8 md:ml-64 ${className}`}
       initial={{ opacity: 0, y: 8 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.25, ease: 'easeOut' }}

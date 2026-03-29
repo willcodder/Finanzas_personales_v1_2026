@@ -15,7 +15,7 @@ export function BottomNav() {
   const { activeTab, setActiveTab } = useStore();
 
   return (
-    <div className="fixed bottom-0 left-1/2 -translate-x-1/2 w-full max-w-[430px] z-30">
+    <div className="md:hidden fixed bottom-0 left-0 w-full z-30">
       <div className="glass dark:bg-[#1C1C1E]/80 border-t border-[#E5E5EA]/60 dark:border-[#3A3A3C]/60 px-2 pb-safe">
         <div className="flex items-center justify-around">
           {tabs.map(({ id, label, icon: Icon }) => {

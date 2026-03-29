@@ -100,7 +100,7 @@ export function Reports() {
 
   return (
     <PageWrapper>
-      <div className="px-5 pt-14 pb-4">
+      <div className="px-5 md:px-8 pt-14 md:pt-10 pb-4">
         <h1 className="text-2xl font-bold text-[#1C1C1E] dark:text-white tracking-tight mb-5">
           Informes
         </h1>
@@ -131,7 +131,7 @@ export function Reports() {
             </div>
 
             {/* Stats cards */}
-            <div className="grid grid-cols-2 gap-3 mb-5">
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-5">
               {[
                 { label: 'Total ingresos', value: totalIncome, color: '#34C759', icon: '↑' },
                 { label: 'Total gastos', value: totalExpense, color: '#FF3B30', icon: '↓' },
@@ -157,8 +157,11 @@ export function Reports() {
               ))}
             </div>
 
+            {/* Charts: 2 col on desktop */}
+            <div className="md:grid md:grid-cols-2 md:gap-5 mb-5">
+
             {/* Bar Chart */}
-            <Card className="p-4 mb-5">
+            <Card className="p-4 mb-5 md:mb-0">
               <h2 className="text-sm font-semibold text-[#1C1C1E] dark:text-white mb-4">
                 Ingresos vs Gastos
               </h2>
@@ -186,7 +189,7 @@ export function Reports() {
             </Card>
 
             {/* Net line chart */}
-            <Card className="p-4 mb-5">
+            <Card className="p-4 mb-5 md:mb-0">
               <h2 className="text-sm font-semibold text-[#1C1C1E] dark:text-white mb-4">
                 Resultado neto mensual
               </h2>
@@ -218,6 +221,8 @@ export function Reports() {
                 </LineChart>
               </ResponsiveContainer>
             </Card>
+
+            </div>{/* end charts grid */}
 
             {/* Category Pie Chart */}
             {categoryData.length > 0 && (

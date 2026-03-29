@@ -291,7 +291,7 @@ export function Debts() {
 
   return (
     <PageWrapper>
-      <div className="px-5 pt-14 pb-4">
+      <div className="px-5 md:px-8 pt-14 md:pt-10 pb-4">
         <h1 className="text-2xl font-bold text-[#1C1C1E] dark:text-white tracking-tight mb-5">
           Mis Deudas
         </h1>

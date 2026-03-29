@@ -1,6 +1,7 @@
 import { useEffect } from 'react';
 import { AnimatePresence } from 'framer-motion';
 import { useStore } from './store/useStore';
+import { Sidebar } from './components/layout/Sidebar';
 import { BottomNav } from './components/layout/BottomNav';
 import { Dashboard } from './pages/Dashboard';
 import { Transactions } from './pages/Transactions';
@@ -22,6 +23,7 @@ function App() {
 
   return (
     <div className="bg-[#F2F2F7] dark:bg-black min-h-screen">
+      <Sidebar />
       <AnimatePresence mode="wait">
         {activeTab === 'dashboard' && <Dashboard key="dashboard" />}
         {activeTab === 'transactions' && <Transactions key="transactions" />}
