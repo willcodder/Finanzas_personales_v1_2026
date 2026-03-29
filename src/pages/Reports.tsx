@@ -2,8 +2,9 @@ import { useState, useMemo } from 'react';
 import { motion } from 'framer-motion';
 import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
-  PieChart, Pie, Cell, LineChart, Line
+  PieChart, Pie, Cell, AreaChart, Area
 } from 'recharts';
+import { TrendingUp, TrendingDown, Minus } from 'lucide-react';
 import { useStore } from '../store/useStore';
 import { PageWrapper } from '../components/layout/PageWrapper';
 import { Card } from '../components/ui/Card';
@@ -11,298 +12,295 @@ import { formatCompact } from '../utils/format';
 import { colorMap } from '../utils/colors';
 import { subMonths, startOfMonth, endOfMonth, isWithinInterval } from 'date-fns';
 
-const MONTH_ABBR = ['Ene', 'Feb', 'Mar', 'Abr', 'May', 'Jun', 'Jul', 'Ago', 'Sep', 'Oct', 'Nov', 'Dic'];
-
+const MONTHS = ['Ene','Feb','Mar','Abr','May','Jun','Jul','Ago','Sep','Oct','Nov','Dic'];
 type Period = '3m' | '6m' | '12m';
 
-function CustomTooltip({ active, payload, label }: any) {
-  if (active && payload && payload.length) {
-    return (
-      <div className="bg-white dark:bg-[#2C2C2E] rounded-2xl shadow-apple-lg px-3 py-2 text-xs">
-        <p className="font-semibold text-[#1C1C1E] dark:text-white mb-1">{label}</p>
-        {payload.map((entry: any) => (
-          <p key={entry.name} style={{ color: entry.color }}>
-            {entry.name}: {formatCompact(entry.value)}
-          </p>
-        ))}
-      </div>
-    );
-  }
-  return null;
+function Tooltip_({ active, payload, label }: any) {
+  if (!active || !payload?.length) return null;
+  return (
+    <div className="bg-card border border-border rounded-lg shadow-dropdown px-3 py-2 text-xs">
+      <p className="font-semibold text-ink mb-1">{label}</p>
+      {payload.map((e: any) => (
+        <p key={e.name} style={{ color: e.color ?? e.fill }}>
+          {e.name}: {formatCompact(e.value)}
+        </p>
+      ))}
+    </div>
+  );
 }
 
 export function Reports() {
   const { transactions, categories } = useStore();
   const [period, setPeriod] = useState<Period>('6m');
+  const months = period === '3m' ? 3 : period === '6m' ? 6 : 12;
 
-  const periodMonths = period === '3m' ? 3 : period === '6m' ? 6 : 12;
-
-  // Monthly bar data
   const monthlyData = useMemo(() => {
-    const data = [];
-    for (let i = periodMonths - 1; i >= 0; i--) {
-      const date = subMonths(new Date(), i);
-      const start = startOfMonth(date);
-      const end = endOfMonth(date);
-      const monthTx = transactions.filter((tx) =>
-        isWithinInterval(new Date(tx.date), { start, end })
-      );
-      const income = monthTx.filter((t) => t.type === 'income').reduce((s, t) => s + t.amount, 0);
-      const expense = monthTx.filter((t) => t.type === 'expense').reduce((s, t) => s + t.amount, 0);
-      data.push({
-        month: MONTH_ABBR[date.getMonth()],
-        Ingresos: income,
-        Gastos: expense,
-        Neto: income - expense,
-      });
-    }
-    return data;
+    return Array.from({ length: months }, (_, i) => {
+      const d = subMonths(new Date(), months - 1 - i);
+      const start = startOfMonth(d);
+      const end   = endOfMonth(d);
+      const txs   = transactions.filter(tx => isWithinInterval(new Date(tx.date), { start, end }));
+      const income  = txs.filter(t => t.type === 'income').reduce((s, t) => s + t.amount, 0);
+      const expense = txs.filter(t => t.type === 'expense').reduce((s, t) => s + t.amount, 0);
+      return { month: MONTHS[d.getMonth()], Ingresos: income, Gastos: expense, Neto: income - expense };
+    });
   }, [transactions, period]);
 
-  // Current month category breakdown
-  const categoryData = useMemo(() => {
-    const now = new Date();
-    const start = startOfMonth(now);
-    const end = endOfMonth(now);
-    const monthExpenses = transactions.filter((tx) =>
-      tx.type === 'expense' && isWithinInterval(new Date(tx.date), { start, end })
-    );
-    const total = monthExpenses.reduce((s, t) => s + t.amount, 0);
-    const bycat: Record<string, number> = {};
-    monthExpenses.forEach((tx) => {
-      bycat[tx.categoryId] = (bycat[tx.categoryId] || 0) + tx.amount;
-    });
-    return Object.entries(bycat)
-      .map(([id, amount]) => {
-        const cat = categories.find((c) => c.id === id);
+  const { categoryData, categoryTrend } = useMemo(() => {
+    const now       = new Date();
+    const curStart  = startOfMonth(now);
+    const curEnd    = endOfMonth(now);
+    const prevStart = startOfMonth(subMonths(now, 1));
+    const prevEnd   = endOfMonth(subMonths(now, 1));
+
+    const curExps  = transactions.filter(tx => tx.type === 'expense' && isWithinInterval(new Date(tx.date), { start: curStart, end: curEnd }));
+    const prevExps = transactions.filter(tx => tx.type === 'expense' && isWithinInterval(new Date(tx.date), { start: prevStart, end: prevEnd }));
+
+    const total = curExps.reduce((s, t) => s + t.amount, 0);
+
+    const byCatCur:  Record<string, number> = {};
+    const byCatPrev: Record<string, number> = {};
+    curExps.forEach(tx  => { byCatCur[tx.categoryId]  = (byCatCur[tx.categoryId]  || 0) + tx.amount; });
+    prevExps.forEach(tx => { byCatPrev[tx.categoryId] = (byCatPrev[tx.categoryId] || 0) + tx.amount; });
+
+    const all = Array.from(new Set([...Object.keys(byCatCur), ...Object.keys(byCatPrev)]));
+    const withTrend = all
+      .map(id => {
+        const cat   = categories.find(c => c.id === id);
+        const cur   = byCatCur[id]  || 0;
+        const prev  = byCatPrev[id] || 0;
+        const delta = prev > 0 ? ((cur - prev) / prev) * 100 : cur > 0 ? 100 : 0;
         return {
           name: cat?.name ?? 'Otro',
-          value: amount,
-          color: cat ? colorMap[cat.color].hex : '#8E8E93',
+          value: cur,
+          prevValue: prev,
+          color: cat ? colorMap[cat.color].hex : '#9CA3AF',
           icon: cat?.icon ?? '💸',
-          pct: total > 0 ? (amount / total) * 100 : 0,
+          pct: total > 0 ? (cur / total) * 100 : 0,
+          delta,
         };
       })
-      .sort((a, b) => b.value - a.value)
-      .slice(0, 6);
+      .sort((a, b) => b.value - a.value);
+
+    return {
+      categoryData: withTrend.filter(d => d.value > 0).slice(0, 8),
+      categoryTrend: withTrend,
+    };
   }, [transactions, categories]);
 
-  // Net line chart
-  const netData = useMemo(() => monthlyData.map((d) => ({ month: d.month, Neto: d.Neto })), [monthlyData]);
-
-  // Summary stats
-  const totalIncome = monthlyData.reduce((s, d) => s + d.Ingresos, 0);
+  const totalIncome  = monthlyData.reduce((s, d) => s + d.Ingresos, 0);
   const totalExpense = monthlyData.reduce((s, d) => s + d.Gastos, 0);
-  const avgMonthlyExpense = periodMonths > 0 ? totalExpense / periodMonths : 0;
-  const savingsRate = totalIncome > 0 ? ((totalIncome - totalExpense) / totalIncome) * 100 : 0;
+  const avgExpense   = months > 0 ? totalExpense / months : 0;
+  const savingsRate  = totalIncome > 0 ? ((totalIncome - totalExpense) / totalIncome) * 100 : 0;
 
   const noData = transactions.length === 0;
 
+  const topSpend   = categoryTrend.filter(d => d.value > 0).slice(0, 5);
+  const biggestInc = [...categoryTrend].filter(d => d.delta > 5 && d.value > 0).sort((a, b) => b.delta - a.delta).slice(0, 3);
+  const biggestDec = [...categoryTrend].filter(d => d.delta < -5 && d.prevValue > 0).sort((a, b) => a.delta - b.delta).slice(0, 3);
+
   return (
     <PageWrapper>
-      <div className="px-5 pt-14 pb-4">
-        <h1 className="text-2xl font-bold text-[#1C1C1E] dark:text-white tracking-tight mb-5">
-          Informes
-        </h1>
+      <div className="flex flex-col md:flex-row md:items-center justify-between px-6 md:px-8 pt-6 pb-5 gap-4">
+        <h1 className="text-xl font-semibold text-ink">Informes</h1>
+        <div className="flex gap-1 p-0.5 bg-surface border border-border rounded-lg w-fit">
+          {(['3m','6m','12m'] as Period[]).map(p => (
+            <button key={p} onClick={() => setPeriod(p)}
+              className={`px-4 py-1.5 rounded-md text-xs font-medium transition-all ${
+                period === p ? 'bg-card text-ink shadow-sm border border-border' : 'text-muted hover:text-ink'
+              }`}
+            >
+              {p === '3m' ? '3 meses' : p === '6m' ? '6 meses' : '1 año'}
+            </button>
+          ))}
+        </div>
+      </div>
 
+      <div className="px-6 md:px-8 pb-6 space-y-5">
         {noData ? (
-          <div className="flex flex-col items-center text-center py-16">
-            <span className="text-5xl mb-4">📊</span>
-            <h3 className="font-semibold text-[#1C1C1E] dark:text-white text-lg mb-2">Sin datos</h3>
-            <p className="text-sm text-[#8E8E93]">Registra movimientos para ver tus informes.</p>
-          </div>
+          <Card padding className="flex flex-col items-center text-center py-16">
+            <span className="text-4xl mb-3">📊</span>
+            <p className="font-semibold text-ink mb-1">Sin datos</p>
+            <p className="text-sm text-muted">Registra movimientos para ver tus informes.</p>
+          </Card>
         ) : (
           <>
-            {/* Period selector */}
-            <div className="flex gap-1 p-1 bg-[#F2F2F7] dark:bg-[#2C2C2E] rounded-2xl mb-5">
-              {(['3m', '6m', '12m'] as Period[]).map((p) => (
-                <button
-                  key={p}
-                  onClick={() => setPeriod(p)}
-                  className={`flex-1 py-2 rounded-xl text-sm font-semibold transition-all ${
-                    period === p
-                      ? 'bg-white dark:bg-[#3A3A3C] text-[#1C1C1E] dark:text-white shadow-apple-sm'
-                      : 'text-[#8E8E93]'
-                  }`}
-                >
-                  {p === '3m' ? '3 meses' : p === '6m' ? '6 meses' : '1 año'}
-                </button>
-              ))}
-            </div>
-
-            {/* Stats cards */}
-            <div className="grid grid-cols-2 gap-3 mb-5">
+            {/* KPIs */}
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
               {[
-                { label: 'Total ingresos', value: totalIncome, color: '#34C759', icon: '↑' },
-                { label: 'Total gastos', value: totalExpense, color: '#FF3B30', icon: '↓' },
-                { label: 'Gasto mensual promedio', value: avgMonthlyExpense, color: '#FF9500', icon: '≈' },
-                { label: 'Tasa de ahorro', value: null, display: `${savingsRate.toFixed(1)}%`, color: savingsRate >= 0 ? '#007AFF' : '#FF3B30', icon: '💰' },
-              ].map((stat, i) => (
-                <motion.div
-                  key={stat.label}
-                  initial={{ opacity: 0, y: 8 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  transition={{ delay: i * 0.05 }}
-                >
-                  <Card className="p-4">
-                    <div className="flex items-center gap-2 mb-1">
-                      <span className="text-base" style={{ color: stat.color }}>{stat.icon}</span>
-                      <p className="text-xs text-[#8E8E93] leading-tight">{stat.label}</p>
-                    </div>
-                    <p className="text-lg font-bold" style={{ color: stat.color }}>
-                      {stat.display ?? formatCompact(stat.value!)}
-                    </p>
+                { label: 'Total ingresos', value: formatCompact(totalIncome), color: 'text-up', bg: 'bg-up-light' },
+                { label: 'Total gastos', value: formatCompact(totalExpense), color: 'text-down', bg: 'bg-down-light' },
+                { label: 'Gasto mensual promedio', value: formatCompact(avgExpense), color: 'text-warn', bg: 'bg-warn-light' },
+                { label: 'Tasa de ahorro', value: `${savingsRate.toFixed(1)}%`, color: savingsRate >= 0 ? 'text-brand' : 'text-down', bg: savingsRate >= 0 ? 'bg-brand-light' : 'bg-down-light' },
+              ].map((k, i) => (
+                <motion.div key={k.label} initial={{ opacity: 0, y: 6 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: i * 0.04 }}>
+                  <Card padding>
+                    <p className="text-xs text-muted mb-2">{k.label}</p>
+                    <p className={`text-xl font-semibold tabular-nums tracking-tight ${k.color}`}>{k.value}</p>
                   </Card>
                 </motion.div>
               ))}
             </div>
 
-            {/* Bar Chart */}
-            <Card className="p-4 mb-5">
-              <h2 className="text-sm font-semibold text-[#1C1C1E] dark:text-white mb-4">
-                Ingresos vs Gastos
-              </h2>
-              <ResponsiveContainer width="100%" height={200}>
-                <BarChart data={monthlyData} barSize={8} barGap={4}>
-                  <CartesianGrid strokeDasharray="3 3" stroke="#F2F2F7" vertical={false} />
-                  <XAxis
-                    dataKey="month"
-                    tick={{ fontSize: 11, fill: '#8E8E93' }}
-                    axisLine={false}
-                    tickLine={false}
-                  />
-                  <YAxis
-                    tickFormatter={(v) => `$${(v / 1000).toFixed(0)}k`}
-                    tick={{ fontSize: 10, fill: '#8E8E93' }}
-                    axisLine={false}
-                    tickLine={false}
-                    width={36}
-                  />
-                  <Tooltip content={<CustomTooltip />} />
-                  <Bar dataKey="Ingresos" fill="#34C759" radius={[4, 4, 0, 0]} />
-                  <Bar dataKey="Gastos" fill="#FF3B30" radius={[4, 4, 0, 0]} />
-                </BarChart>
-              </ResponsiveContainer>
-            </Card>
+            {/* Main charts */}
+            <div className="grid md:grid-cols-3 gap-5">
+              <Card className="md:col-span-2 p-5">
+                <h2 className="text-sm font-semibold text-ink mb-5">Ingresos vs Gastos por mes</h2>
+                <ResponsiveContainer width="100%" height={220}>
+                  <BarChart data={monthlyData} barSize={10} barGap={4} margin={{ left: -16, right: 4, top: 4 }}>
+                    <CartesianGrid stroke="#F0F0F0" vertical={false} />
+                    <XAxis dataKey="month" tick={{ fontSize: 11, fill: '#9CA3AF' }} axisLine={false} tickLine={false} />
+                    <YAxis tick={{ fontSize: 10, fill: '#9CA3AF' }} axisLine={false} tickLine={false} tickFormatter={v => `$${(v/1000).toFixed(0)}k`} />
+                    <Tooltip content={<Tooltip_ />} />
+                    <Bar dataKey="Ingresos" fill="#16A34A" radius={[3,3,0,0]} />
+                    <Bar dataKey="Gastos" fill="#DC2626" radius={[3,3,0,0]} />
+                  </BarChart>
+                </ResponsiveContainer>
+                <div className="flex gap-4 mt-2">
+                  <div className="flex items-center gap-1.5"><div className="w-2.5 h-2.5 rounded-full bg-up"/><span className="text-xs text-muted">Ingresos</span></div>
+                  <div className="flex items-center gap-1.5"><div className="w-2.5 h-2.5 rounded-full bg-down"/><span className="text-xs text-muted">Gastos</span></div>
+                </div>
+              </Card>
 
-            {/* Net line chart */}
-            <Card className="p-4 mb-5">
-              <h2 className="text-sm font-semibold text-[#1C1C1E] dark:text-white mb-4">
-                Resultado neto mensual
-              </h2>
-              <ResponsiveContainer width="100%" height={160}>
-                <LineChart data={netData}>
-                  <CartesianGrid strokeDasharray="3 3" stroke="#F2F2F7" vertical={false} />
-                  <XAxis
-                    dataKey="month"
-                    tick={{ fontSize: 11, fill: '#8E8E93' }}
-                    axisLine={false}
-                    tickLine={false}
-                  />
-                  <YAxis
-                    tickFormatter={(v) => `$${(v / 1000).toFixed(0)}k`}
-                    tick={{ fontSize: 10, fill: '#8E8E93' }}
-                    axisLine={false}
-                    tickLine={false}
-                    width={36}
-                  />
-                  <Tooltip content={<CustomTooltip />} />
-                  <Line
-                    type="monotone"
-                    dataKey="Neto"
-                    stroke="#007AFF"
-                    strokeWidth={2.5}
-                    dot={{ r: 4, fill: '#007AFF', strokeWidth: 0 }}
-                    activeDot={{ r: 6 }}
-                  />
-                </LineChart>
-              </ResponsiveContainer>
-            </Card>
-
-            {/* Category Pie Chart */}
-            {categoryData.length > 0 && (
-              <Card className="p-4 mb-5">
-                <h2 className="text-sm font-semibold text-[#1C1C1E] dark:text-white mb-4">
-                  Gastos por categoría (mes actual)
-                </h2>
-                <div className="flex items-center gap-4">
-                  <PieChart width={140} height={140}>
-                    <Pie
-                      data={categoryData}
-                      cx={65}
-                      cy={65}
-                      innerRadius={40}
-                      outerRadius={65}
-                      paddingAngle={2}
-                      dataKey="value"
-                    >
-                      {categoryData.map((entry, index) => (
-                        <Cell key={`cell-${index}`} fill={entry.color} />
+              <Card className="p-5">
+                <h2 className="text-sm font-semibold text-ink mb-4">Gastos por categoría</h2>
+                {categoryData.length === 0 ? (
+                  <p className="text-xs text-subtle text-center py-8">Sin datos este mes</p>
+                ) : (
+                  <>
+                    <div className="flex justify-center mb-4">
+                      <PieChart width={140} height={140}>
+                        <Pie data={categoryData} cx={65} cy={65} innerRadius={38} outerRadius={65} paddingAngle={2} dataKey="value">
+                          {categoryData.map((e, idx) => <Cell key={idx} fill={e.color} />)}
+                        </Pie>
+                        <Tooltip content={<Tooltip_ />} />
+                      </PieChart>
+                    </div>
+                    <div className="space-y-2">
+                      {categoryData.slice(0, 5).map(cat => (
+                        <div key={cat.name} className="flex items-center gap-2">
+                          <div className="w-2 h-2 rounded-full flex-shrink-0" style={{ backgroundColor: cat.color }} />
+                          <span className="text-xs text-ink flex-1 truncate">{cat.icon} {cat.name}</span>
+                          <span className="text-xs font-semibold text-muted tabular-nums">{cat.pct.toFixed(0)}%</span>
+                        </div>
                       ))}
-                    </Pie>
-                  </PieChart>
-                  <div className="flex-1 space-y-2">
-                    {categoryData.map((cat) => (
-                      <div key={cat.name} className="flex items-center gap-2">
-                        <div
-                          className="w-2.5 h-2.5 rounded-full flex-shrink-0"
-                          style={{ backgroundColor: cat.color }}
-                        />
-                        <span className="text-xs text-[#3A3A3C] dark:text-[#EBEBF5]/80 flex-1 truncate">
-                          {cat.icon} {cat.name}
-                        </span>
-                        <span className="text-xs font-semibold text-[#1C1C1E] dark:text-white">
-                          {cat.pct.toFixed(0)}%
-                        </span>
-                      </div>
-                    ))}
-                  </div>
-                </div>
+                    </div>
+                  </>
+                )}
               </Card>
-            )}
+            </div>
 
-            {/* Category list detailed */}
-            {categoryData.length > 0 && (
-              <Card className="divide-y divide-[#F2F2F7] dark:divide-[#2C2C2E]">
-                <div className="px-4 py-3">
-                  <h2 className="text-sm font-semibold text-[#1C1C1E] dark:text-white">
-                    Detalle de gastos
-                  </h2>
+            {/* Net area chart */}
+            <Card className="p-5">
+              <h2 className="text-sm font-semibold text-ink mb-5">Resultado neto mensual</h2>
+              <ResponsiveContainer width="100%" height={160}>
+                <AreaChart data={monthlyData} margin={{ left: -16, right: 4, top: 4 }}>
+                  <defs>
+                    <linearGradient id="gn" x1="0" y1="0" x2="0" y2="1">
+                      <stop offset="5%" stopColor="#4F46E5" stopOpacity={0.12} />
+                      <stop offset="95%" stopColor="#4F46E5" stopOpacity={0} />
+                    </linearGradient>
+                  </defs>
+                  <CartesianGrid stroke="#F0F0F0" vertical={false} />
+                  <XAxis dataKey="month" tick={{ fontSize: 11, fill: '#9CA3AF' }} axisLine={false} tickLine={false} />
+                  <YAxis tick={{ fontSize: 10, fill: '#9CA3AF' }} axisLine={false} tickLine={false} tickFormatter={v => `$${(v/1000).toFixed(0)}k`} />
+                  <Tooltip content={<Tooltip_ />} />
+                  <Area type="monotone" dataKey="Neto" stroke="#4F46E5" strokeWidth={2} fill="url(#gn)" dot={{ r: 3, fill: '#4F46E5', strokeWidth: 0 }} />
+                </AreaChart>
+              </ResponsiveContainer>
+            </Card>
+
+            {/* Category ranking */}
+            {topSpend.length > 0 && (
+              <div className="grid md:grid-cols-3 gap-5">
+                <Card className="md:col-span-2">
+                  <div className="px-5 py-3.5 border-b border-border flex items-center justify-between">
+                    <h2 className="text-sm font-semibold text-ink">Ranking de gastos — mes actual</h2>
+                    <span className="text-xs text-muted">vs mes anterior</span>
+                  </div>
+                  <div className="hidden md:grid grid-cols-[1fr_110px_90px_70px] gap-4 px-5 py-2 bg-surface border-b border-border text-2xs font-semibold text-subtle uppercase tracking-wider">
+                    <span>Categoría</span>
+                    <span className="text-right">Importe</span>
+                    <span className="text-right">% del total</span>
+                    <span className="text-right">Tendencia</span>
+                  </div>
+                  {topSpend.map((cat, i) => {
+                    const isUp   = cat.delta > 5;
+                    const isDown = cat.delta < -5;
+                    return (
+                      <div key={cat.name} className={`flex md:grid md:grid-cols-[1fr_110px_90px_70px] gap-2 md:gap-4 items-center px-5 py-3 hover:bg-surface transition-colors ${i < topSpend.length - 1 ? 'border-b border-border' : ''}`}>
+                        <div className="flex items-center gap-2.5">
+                          <div className="w-5 h-5 rounded text-xs flex items-center justify-center font-semibold text-muted bg-surface border border-border flex-shrink-0">
+                            {i + 1}
+                          </div>
+                          <div className="w-7 h-7 rounded-lg flex items-center justify-center text-sm flex-shrink-0" style={{ backgroundColor: `${cat.color}15` }}>
+                            {cat.icon}
+                          </div>
+                          <div className="flex-1 min-w-0">
+                            <p className="text-sm font-medium text-ink truncate">{cat.name}</p>
+                            <div className="h-1 rounded-full bg-border overflow-hidden w-full md:w-32 mt-1">
+                              <div className="h-full rounded-full" style={{ width: `${cat.pct}%`, backgroundColor: cat.color }} />
+                            </div>
+                          </div>
+                        </div>
+                        <p className="text-sm font-semibold text-down tabular-nums md:text-right">{formatCompact(cat.value)}</p>
+                        <p className="text-sm text-muted tabular-nums md:text-right">{cat.pct.toFixed(1)}%</p>
+                        <div className="flex items-center gap-1 md:justify-end">
+                          {isUp   && <TrendingUp  size={13} className="text-down flex-shrink-0" />}
+                          {isDown && <TrendingDown size={13} className="text-up flex-shrink-0" />}
+                          {!isUp && !isDown && <Minus size={13} className="text-muted flex-shrink-0" />}
+                          <span className={`text-xs font-medium tabular-nums ${isUp ? 'text-down' : isDown ? 'text-up' : 'text-muted'}`}>
+                            {cat.delta > 0 ? '+' : ''}{cat.delta.toFixed(0)}%
+                          </span>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </Card>
+
+                <div className="space-y-3">
+                  {biggestInc.length > 0 && (
+                    <Card className="p-4">
+                      <div className="flex items-center gap-2 mb-3">
+                        <TrendingUp size={14} className="text-down" />
+                        <h3 className="text-xs font-semibold text-ink">Mayor subida</h3>
+                      </div>
+                      <div className="space-y-2.5">
+                        {biggestInc.map(cat => (
+                          <div key={cat.name} className="flex items-center gap-2">
+                            <span className="text-sm">{cat.icon}</span>
+                            <p className="text-xs text-ink flex-1 truncate">{cat.name}</p>
+                            <span className="text-xs font-semibold text-down tabular-nums">+{cat.delta.toFixed(0)}%</span>
+                          </div>
+                        ))}
+                      </div>
+                    </Card>
+                  )}
+                  {biggestDec.length > 0 && (
+                    <Card className="p-4">
+                      <div className="flex items-center gap-2 mb-3">
+                        <TrendingDown size={14} className="text-up" />
+                        <h3 className="text-xs font-semibold text-ink">Mayor bajada</h3>
+                      </div>
+                      <div className="space-y-2.5">
+                        {biggestDec.map(cat => (
+                          <div key={cat.name} className="flex items-center gap-2">
+                            <span className="text-sm">{cat.icon}</span>
+                            <p className="text-xs text-ink flex-1 truncate">{cat.name}</p>
+                            <span className="text-xs font-semibold text-up tabular-nums">{cat.delta.toFixed(0)}%</span>
+                          </div>
+                        ))}
+                      </div>
+                    </Card>
+                  )}
+                  {biggestInc.length === 0 && biggestDec.length === 0 && (
+                    <Card className="p-4 flex flex-col items-center text-center py-8">
+                      <Minus size={20} className="text-muted mb-2" />
+                      <p className="text-xs text-muted">Sin variaciones significativas respecto al mes anterior</p>
+                    </Card>
+                  )}
                 </div>
-                {categoryData.map((cat, i) => (
-                  <motion.div
-                    key={cat.name}
-                    className="px-4 py-3"
-                    initial={{ opacity: 0 }}
-                    animate={{ opacity: 1 }}
-                    transition={{ delay: i * 0.04 }}
-                  >
-                    <div className="flex items-center gap-3 mb-1.5">
-                      <div
-                        className="w-8 h-8 rounded-xl flex items-center justify-center text-sm flex-shrink-0"
-                        style={{ backgroundColor: `${cat.color}20` }}
-                      >
-                        {cat.icon}
-                      </div>
-                      <span className="flex-1 text-sm font-medium text-[#1C1C1E] dark:text-white">
-                        {cat.name}
-                      </span>
-                      <span className="text-sm font-semibold text-[#FF3B30]">
-                        {formatCompact(cat.value)}
-                      </span>
-                    </div>
-                    <div className="flex items-center gap-2 pl-11">
-                      <div className="flex-1 h-1 rounded-full bg-[#E5E5EA] dark:bg-[#3A3A3C] overflow-hidden">
-                        <div
-                          className="h-full rounded-full"
-                          style={{ width: `${cat.pct}%`, backgroundColor: cat.color }}
-                        />
-                      </div>
-                      <span className="text-xs text-[#8E8E93]">{cat.pct.toFixed(1)}%</span>
-                    </div>
-                  </motion.div>
-                ))}
-              </Card>
+              </div>
             )}
           </>
         )}

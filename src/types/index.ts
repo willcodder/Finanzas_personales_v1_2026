@@ -4,6 +4,22 @@ export type CategoryColor =
   | 'blue' | 'green' | 'red' | 'orange' | 'yellow'
   | 'purple' | 'pink' | 'teal' | 'indigo';
 
+export type AccountType = 'checking' | 'savings' | 'credit' | 'cash' | 'investment';
+
+export type GoalCategory =
+  | 'emergency' | 'travel' | 'home' | 'education'
+  | 'vehicle' | 'tech' | 'health' | 'retirement' | 'other';
+
+export interface Account {
+  id: string;
+  name: string;
+  type: AccountType;
+  initialBalance: number;
+  color: CategoryColor;
+  icon: string;
+  createdAt: string;
+}
+
 export interface Category {
   id: string;
   name: string;
@@ -20,6 +36,7 @@ export interface Transaction {
   description: string;
   date: string; // ISO string
   note?: string;
+  accountId?: string;
 }
 
 export interface SavingGoal {
@@ -30,6 +47,7 @@ export interface SavingGoal {
   deadline?: string; // ISO string
   icon: string;
   color: CategoryColor;
+  goalCategory: GoalCategory;
   createdAt: string;
 }
 
@@ -61,4 +79,4 @@ export interface Budget {
   month: string; // YYYY-MM
 }
 
-export type TabName = 'dashboard' | 'transactions' | 'savings' | 'debts' | 'reports';
+export type TabName = 'dashboard' | 'transactions' | 'savings' | 'debts' | 'reports' | 'accounts';

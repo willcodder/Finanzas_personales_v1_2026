@@ -6,11 +6,12 @@ interface CardProps {
   className?: string;
   onClick?: () => void;
   animate?: boolean;
+  padding?: boolean;
 }
 
-export function Card({ children, className = '', onClick, animate = false }: CardProps) {
+export function Card({ children, className = '', onClick, animate = false, padding = false }: CardProps) {
   const base =
-    'bg-white dark:bg-[#1C1C1E] rounded-2xl overflow-hidden';
+    'bg-white dark:bg-[#1C1C1E] rounded-2xl overflow-hidden' + (padding ? ' p-5' : '');
 
   if (animate && onClick) {
     return (
