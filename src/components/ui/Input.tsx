@@ -10,32 +10,32 @@ export function Input({ label, hint, prefix, className = '', ...props }: InputPr
   return (
     <div className="flex flex-col gap-1.5">
       {label && (
-        <label className="text-sm font-medium text-[#3A3A3C] dark:text-[#EBEBF5]/80 px-1">
+        <label className="text-xs font-bold text-ink px-1">
           {label}
         </label>
       )}
       <div className="relative flex items-center">
         {prefix && (
-          <span className="absolute left-4 text-[#8E8E93] font-medium select-none">
+          <span className="absolute left-4 text-muted font-semibold select-none text-sm">
             {prefix}
           </span>
         )}
         <input
           className={`
-            w-full bg-[#F2F2F7] dark:bg-[#2C2C2E]
-            text-[#1C1C1E] dark:text-white placeholder:text-[#8E8E93]
+            w-full bg-surface border border-border
+            text-ink placeholder:text-subtle
             rounded-xl px-4 py-3
-            text-base font-normal
-            transition-colors duration-150
-            focus:bg-white dark:focus:bg-[#3A3A3C]
-            ${prefix ? 'pl-8' : ''}
+            text-sm font-medium
+            transition-all duration-150
+            focus:border-brand focus:ring-2 focus:ring-brand/10
+            ${prefix ? 'pl-9' : ''}
             ${className}
           `}
           {...props}
         />
       </div>
       {hint && (
-        <p className="text-xs text-[#8E8E93] px-1">{hint}</p>
+        <p className="text-xs text-muted px-1">{hint}</p>
       )}
     </div>
   );
@@ -49,18 +49,18 @@ export function TextArea({ label, className = '', ...props }: TextAreaProps) {
   return (
     <div className="flex flex-col gap-1.5">
       {label && (
-        <label className="text-sm font-medium text-[#3A3A3C] dark:text-[#EBEBF5]/80 px-1">
+        <label className="text-xs font-bold text-ink px-1">
           {label}
         </label>
       )}
       <textarea
         className={`
-          w-full bg-[#F2F2F7] dark:bg-[#2C2C2E]
-          text-[#1C1C1E] dark:text-white placeholder:text-[#8E8E93]
+          w-full bg-surface border border-border
+          text-ink placeholder:text-subtle
           rounded-xl px-4 py-3
-          text-base font-normal resize-none
-          transition-colors duration-150
-          focus:bg-white dark:focus:bg-[#3A3A3C]
+          text-sm font-medium resize-none
+          transition-all duration-150
+          focus:border-brand focus:ring-2 focus:ring-brand/10
           ${className}
         `}
         rows={3}

@@ -1,20 +1,19 @@
 import { useState, useMemo } from 'react';
 import { motion } from 'framer-motion';
+import type { Variants } from 'framer-motion';
 import {
-  TrendingUp, TrendingDown, Plus, Eye, EyeOff,
-  ArrowUpRight, ArrowDownRight, ChevronRight
+  Eye, EyeOff, ArrowUpRight, ArrowDownRight,
+  ChevronRight, Zap, TrendingUp, TrendingDown, Sparkles
 } from 'lucide-react';
 import { useStore } from '../store/useStore';
 import { PageWrapper } from '../components/layout/PageWrapper';
-import { Card } from '../components/ui/Card';
 import { ProgressBar } from '../components/ui/ProgressBar';
-import { Button } from '../components/ui/Button';
 import { formatCompact, formatDateShort, percentage } from '../utils/format';
 import { colorMap } from '../utils/colors';
 import { format, startOfMonth, endOfMonth, isWithinInterval, subMonths } from 'date-fns';
 import { es } from 'date-fns/locale';
 import {
-  AreaChart, Area, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid
+  AreaChart, Area, XAxis, YAxis, Tooltip, ResponsiveContainer
 } from 'recharts';
 
 const MONTH_ABBR = ['Ene','Feb','Mar','Abr','May','Jun','Jul','Ago','Sep','Oct','Nov','Dic'];
@@ -22,9 +21,9 @@ const MONTH_ABBR = ['Ene','Feb','Mar','Abr','May','Jun','Jul','Ago','Sep','Oct',
 function useStats() {
   const { transactions, categories } = useStore();
   return useMemo(() => {
-    const now = new Date();
+    const now   = new Date();
     const start = startOfMonth(now);
-    const end = endOfMonth(now);
+    const end   = endOfMonth(now);
     const monthTx = transactions.filter(tx => isWithinInterval(new Date(tx.date), { start, end }));
     const income  = monthTx.filter(t => t.type === 'income').reduce((s, t) => s + t.amount, 0);
     const expense = monthTx.filter(t => t.type === 'expense').reduce((s, t) => s + t.amount, 0);
@@ -57,66 +56,6 @@ function useStats() {
   }, [transactions, categories]);
 }
 
-// ── Gauge SVG ─────────────────────────────────────────────────────────────────
-function GaugeChart({ score }: { score: number }) {
-  const cx = 110;
-  const cy = 100;
-  const r  = 76;
-  const SEGMENTS = 20;
-  const GAP      = 4; // degrees gap between segments
-  const ARC      = (180 - GAP * SEGMENTS) / SEGMENTS; // arc per segment
-
-  const filled = Math.round((score / 100) * SEGMENTS);
-
-  // colour: green above 70, yellow above 40, red below
-  const segColor = (i: number) => {
-    if (i >= filled) return '#E5E7EB'; // unfilled
-    if (score >= 70) return '#16A34A';
-    if (score >= 40) return '#D97706';
-    return '#DC2626';
-  };
-
-  const polarToXY = (angleDeg: number, radius: number) => {
-    const rad = ((angleDeg - 180) * Math.PI) / 180;
-    return { x: cx + radius * Math.cos(rad), y: cy + radius * Math.sin(rad) };
-  };
-
-  const segPath = (i: number) => {
-    const startAngle = i * (ARC + GAP);
-    const endAngle   = startAngle + ARC;
-    const inner = r - 14;
-    const p1 = polarToXY(startAngle, r);
-    const p2 = polarToXY(endAngle, r);
-    const p3 = polarToXY(endAngle, inner);
-    const p4 = polarToXY(startAngle, inner);
-    const large = ARC > 180 ? 1 : 0;
-    return `M${p1.x},${p1.y} A${r},${r},0,${large},1,${p2.x},${p2.y}
-            L${p3.x},${p3.y} A${inner},${inner},0,${large},0,${p4.x},${p4.y} Z`;
-  };
-
-  const label = score >= 80 ? 'Excelente' : score >= 65 ? 'Muy buena' : score >= 50 ? 'Buena' : score >= 35 ? 'Regular' : 'A mejorar';
-  const labelColor = score >= 70 ? '#16A34A' : score >= 40 ? '#D97706' : '#DC2626';
-
-  return (
-    <div className="flex flex-col items-center">
-      <svg width="220" height="120" viewBox="0 0 220 120">
-        {Array.from({ length: SEGMENTS }, (_, i) => (
-          <path key={i} d={segPath(i)} fill={segColor(i)} />
-        ))}
-        {/* Score number */}
-        <text x={cx} y={cy - 4} textAnchor="middle" fontSize="32" fontWeight="700" fill="#111111" fontFamily="Inter, sans-serif">
-          {score}
-        </text>
-        <text x={cx} y={cy + 14} textAnchor="middle" fontSize="11" fill="#9CA3AF" fontFamily="Inter, sans-serif">
-          de 100
-        </text>
-      </svg>
-      <p className="text-sm font-semibold mt-1" style={{ color: labelColor }}>{label}</p>
-    </div>
-  );
-}
-
-// ── Score calculator ───────────────────────────────────────────────────────────
 function useFinancialScore() {
   const { transactions, savingGoals, debts } = useStore();
   return useMemo(() => {
@@ -128,63 +67,83 @@ function useFinancialScore() {
     const expense = monthTx.filter(t => t.type === 'expense').reduce((s, t) => s + t.amount, 0);
 
     let score = 0;
-
-    // Savings rate — 40 pts
     let savingsRate = 0;
+
     if (income > 0) {
       savingsRate = Math.max(0, (income - expense) / income);
       score += Math.min(40, Math.round((savingsRate / 0.2) * 40));
-    } else {
-      score += 20; // no data yet → neutral
-    }
-
-    // Monthly balance — 30 pts
-    if (income > 0) {
       score += expense <= income ? 30 : Math.max(0, 30 - Math.round(((expense - income) / income) * 30));
     } else {
-      score += 15;
+      score += 35;
     }
 
-    // Savings goals — 15 pts
     if (savingGoals.length > 0) score += 10;
     if (savingGoals.some(g => g.currentAmount >= g.targetAmount)) score += 5;
 
-    // Debt health — 15 pts
     const totalRemaining = debts.reduce((s, d) => s + d.remainingAmount, 0);
     if (totalRemaining === 0) {
       score += 15;
     } else if (income > 0) {
-      const debtToMonthlyIncome = totalRemaining / (income * 12);
-      if (debtToMonthlyIncome < 0.1)       score += 12;
-      else if (debtToMonthlyIncome < 0.3)  score += 8;
-      else if (debtToMonthlyIncome < 0.5)  score += 4;
+      const ratio = totalRemaining / (income * 12);
+      if (ratio < 0.1)      score += 12;
+      else if (ratio < 0.3) score += 8;
+      else if (ratio < 0.5) score += 4;
     }
 
     return {
       score: Math.min(100, Math.max(0, score)),
       savingsRatePct: Math.round(savingsRate * 100),
-      hasDebt: totalRemaining > 0,
       debtFree: totalRemaining === 0,
     };
   }, [transactions, savingGoals, debts]);
 }
 
-// ── Tooltip ───────────────────────────────────────────────────────────────────
+function ScoreRing({ score }: { score: number }) {
+  const radius = 44;
+  const circumference = 2 * Math.PI * radius;
+  const strokeDash = (score / 100) * circumference;
+  const color = score >= 70 ? '#30D158' : score >= 40 ? '#FF9F0A' : '#FF3B30';
+  const label = score >= 80 ? 'Excelente' : score >= 65 ? 'Muy buena' : score >= 50 ? 'Buena' : score >= 35 ? 'Regular' : 'Mejorar';
+
+  return (
+    <div className="flex flex-col items-center gap-2">
+      <div className="relative w-28 h-28">
+        <svg className="w-full h-full -rotate-90" viewBox="0 0 100 100">
+          <circle cx="50" cy="50" r={radius} fill="none" stroke="currentColor" strokeWidth="8" className="text-border" />
+          <circle
+            cx="50" cy="50" r={radius} fill="none"
+            stroke={color} strokeWidth="8"
+            strokeDasharray={`${strokeDash} ${circumference}`}
+            strokeLinecap="round"
+            style={{ filter: `drop-shadow(0 0 6px ${color}60)`, transition: 'stroke-dasharray 1s ease' }}
+          />
+        </svg>
+        <div className="absolute inset-0 flex flex-col items-center justify-center">
+          <span className="text-3xl font-black text-ink num-display leading-none">{score}</span>
+          <span className="text-2xs text-muted font-medium">/ 100</span>
+        </div>
+      </div>
+      <span className="text-sm font-bold" style={{ color }}>{label}</span>
+    </div>
+  );
+}
+
 function CustomTooltip({ active, payload, label }: any) {
   if (!active || !payload?.length) return null;
   return (
-    <div className="bg-card border border-border rounded-lg shadow-dropdown px-3 py-2 text-xs">
-      <p className="font-semibold text-ink mb-1">{label}</p>
+    <div className="bg-card-elevated border border-border rounded-2xl shadow-dropdown px-4 py-3 text-xs">
+      <p className="font-bold text-ink mb-2">{label}</p>
       {payload.map((e: any) => (
-        <p key={e.name} style={{ color: e.color }}>
-          {e.name === 'ingresos' ? 'Ingresos' : 'Gastos'}: {formatCompact(e.value)}
-        </p>
+        <div key={e.name} className="flex items-center gap-2 mb-1">
+          <div className="w-2 h-2 rounded-full" style={{ backgroundColor: e.color }} />
+          <span className="text-muted">{e.name === 'ingresos' ? 'Ingresos' : 'Gastos'}:</span>
+          <span className="font-bold text-ink">{formatCompact(e.value)}</span>
+        </div>
       ))}
     </div>
   );
 }
 
-// ── Dashboard ─────────────────────────────────────────────────────────────────
 export function Dashboard() {
   const { transactions, categories, savingGoals, debts, setActiveTab } = useStore();
   const [hide, setHide] = useState(false);
@@ -194,282 +153,325 @@ export function Dashboard() {
   const totalBalance = transactions.reduce((s, t) =>
     t.type === 'income' ? s + t.amount : s - t.amount, 0);
 
-  const recentTx   = transactions.slice(0, 6);
-  const activeGoals = savingGoals.filter(g => g.currentAmount < g.targetAmount).slice(0, 4);
+  const recentTx    = transactions.slice(0, 6);
+  const activeGoals = savingGoals.filter(g => g.currentAmount < g.targetAmount).slice(0, 3);
   const activeDebts = debts.filter(d => d.remainingAmount > 0).slice(0, 3);
+
+  const greeting = (() => {
+    const h = new Date().getHours();
+    if (h < 12) return 'Buenos días';
+    if (h < 20) return 'Buenas tardes';
+    return 'Buenas noches';
+  })();
 
   const monthLabel = format(new Date(), 'MMMM yyyy', { locale: es });
 
-  const kpis = [
-    { label: 'Balance total',    value: totalBalance,   icon: TrendingUp,    color: totalBalance >= 0 ? '#16A34A' : '#DC2626', bg: totalBalance >= 0 ? '#F0FDF4' : '#FEF2F2' },
-    { label: 'Ingresos del mes', value: stats.income,   icon: ArrowUpRight,  color: '#16A34A', bg: '#F0FDF4' },
-    { label: 'Gastos del mes',   value: stats.expense,  icon: ArrowDownRight, color: '#DC2626', bg: '#FEF2F2' },
-    { label: 'Neto del mes',     value: stats.balance,  icon: stats.balance >= 0 ? TrendingUp : TrendingDown, color: stats.balance >= 0 ? '#4F46E5' : '#DC2626', bg: stats.balance >= 0 ? '#EEF2FF' : '#FEF2F2' },
-  ];
+  const stagger: Variants = {
+    hidden: { opacity: 0 },
+    show:   { opacity: 1, transition: { staggerChildren: 0.07 } },
+  };
+  const fadeUp: Variants = {
+    hidden: { opacity: 0, y: 16 },
+    show:   { opacity: 1, y: 0, transition: { type: 'spring' as const, damping: 24, stiffness: 280 } },
+  };
 
   return (
     <PageWrapper>
-      {/* Header */}
-      <div className="flex items-center justify-between px-6 md:px-8 pt-6 pb-5">
-        <div>
-          <p className="text-xs text-muted font-medium uppercase tracking-wider mb-0.5">
-            {monthLabel.charAt(0).toUpperCase() + monthLabel.slice(1)}
-          </p>
-          <h1 className="text-xl font-semibold text-ink">Dashboard</h1>
-        </div>
-        <Button onClick={() => setActiveTab('transactions')}>
-          <Plus size={15} />
-          <span className="hidden sm:inline">Nuevo movimiento</span>
-          <span className="sm:hidden">Nuevo</span>
-        </Button>
-      </div>
+      <motion.div variants={stagger} initial="hidden" animate="show">
 
-      <div className="px-6 md:px-8 space-y-5 pb-6">
+        {/* ── Hero balance card ──────────────────────────── */}
+        <motion.div variants={fadeUp} className="px-4 md:px-8 pt-6 pb-2">
+          <div
+            className="relative rounded-3xl overflow-hidden p-6 md:p-8"
+            style={{ background: 'linear-gradient(135deg, #5856D6 0%, #0A84FF 65%, #34C759 100%)' }}
+          >
+            <div className="absolute -top-14 -right-14 w-56 h-56 rounded-full bg-white/8 pointer-events-none" />
+            <div className="absolute -bottom-10 -left-10 w-40 h-40 rounded-full bg-white/5 pointer-events-none" />
 
-        {/* ── Score + KPIs ────────────────────────────────── */}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-
-          {/* Gauge card */}
-          <motion.div initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }}>
-            <Card padding className="flex flex-col items-center justify-center">
-              <p className="text-xs font-semibold text-muted uppercase tracking-wider mb-3">Salud financiera</p>
-              <GaugeChart score={score} />
-
-              {/* 3 metrics below gauge */}
-              <div className="w-full mt-4 pt-4 border-t border-border grid grid-cols-3 gap-2 text-center">
+            <div className="relative z-10">
+              <div className="flex items-start justify-between mb-6">
                 <div>
-                  <p className="text-2xs text-muted mb-0.5">Ahorro</p>
-                  <p className={`text-sm font-bold tabular-nums ${savingsRatePct >= 20 ? 'text-up' : savingsRatePct >= 10 ? 'text-warn' : 'text-down'}`}>
-                    {savingsRatePct}%
+                  <p className="text-white/70 text-sm font-medium">{greeting}</p>
+                  <p className="text-white/50 text-xs mt-0.5">
+                    {monthLabel.charAt(0).toUpperCase() + monthLabel.slice(1)}
                   </p>
                 </div>
-                <div>
-                  <p className="text-2xs text-muted mb-0.5">Balance</p>
-                  <p className={`text-sm font-bold tabular-nums ${stats.balance >= 0 ? 'text-up' : 'text-down'}`}>
-                    {stats.balance >= 0 ? '+' : ''}{formatCompact(stats.balance)}
-                  </p>
-                </div>
-                <div>
-                  <p className="text-2xs text-muted mb-0.5">Deudas</p>
-                  <p className={`text-sm font-bold ${debtFree ? 'text-up' : 'text-warn'}`}>
-                    {debtFree ? '✓ Libre' : `${activeDebts.length} activa${activeDebts.length !== 1 ? 's' : ''}`}
-                  </p>
+                <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-white/15 backdrop-blur-sm">
+                  <Sparkles size={11} className="text-white/80" />
+                  <span className="text-white/80 text-2xs font-bold">Score {score}</span>
                 </div>
               </div>
-            </Card>
-          </motion.div>
 
-          {/* KPI grid — 2x2 on mobile inside this col; 2-col grid on desktop */}
-          <div className="md:col-span-2 grid grid-cols-2 gap-3">
-            {kpis.map((k, i) => (
-              <motion.div
-                key={k.label}
-                initial={{ opacity: 0, y: 8 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ delay: (i + 1) * 0.04 }}
-              >
-                <Card padding className="h-full">
-                  <div className="flex items-start justify-between mb-3">
-                    <p className="text-xs font-medium text-muted leading-tight">{k.label}</p>
-                    <div className="w-7 h-7 rounded-lg flex items-center justify-center flex-shrink-0" style={{ backgroundColor: k.bg }}>
-                      <k.icon size={14} style={{ color: k.color }} strokeWidth={2} />
+              <div className="mb-6">
+                <p className="text-white/50 text-2xs font-bold uppercase tracking-widest mb-2">Balance Total</p>
+                <div className="flex items-end gap-3">
+                  <span className="text-4xl md:text-5xl font-black text-white num-display tracking-tight">
+                    {hide ? '••••••' : formatCompact(totalBalance)}
+                  </span>
+                  <button
+                    onClick={() => setHide(!hide)}
+                    className="mb-2 p-1.5 rounded-full bg-white/15 hover:bg-white/25 transition-colors"
+                  >
+                    {hide ? <Eye size={14} className="text-white" /> : <EyeOff size={14} className="text-white" />}
+                  </button>
+                </div>
+              </div>
+
+              <div className="grid grid-cols-3 gap-3">
+                {[
+                  { label: 'Ingresos', value: stats.income,  Icon: ArrowUpRight,   color: '#34C759' },
+                  { label: 'Gastos',   value: stats.expense, Icon: ArrowDownRight, color: '#FF6B6B' },
+                  { label: 'Neto',     value: stats.balance, Icon: stats.balance >= 0 ? TrendingUp : TrendingDown, color: stats.balance >= 0 ? '#34C759' : '#FF6B6B' },
+                ].map(k => (
+                  <div key={k.label} className="rounded-2xl p-3" style={{ background: 'rgba(255,255,255,0.10)' }}>
+                    <div className="flex items-center gap-1 mb-1.5">
+                      <k.Icon size={11} style={{ color: k.color }} strokeWidth={2.5} />
+                      <span className="text-white/60 text-2xs font-bold">{k.label}</span>
                     </div>
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <p className="text-xl font-semibold text-ink tracking-tight">
+                    <p className="text-white font-black text-sm num-display">
                       {hide ? '•••' : formatCompact(k.value)}
                     </p>
-                    {i === 0 && (
-                      <button onClick={() => setHide(!hide)} className="text-subtle hover:text-muted transition-colors">
-                        {hide ? <Eye size={13} /> : <EyeOff size={13} />}
-                      </button>
-                    )}
                   </div>
-                </Card>
-              </motion.div>
-            ))}
-          </div>
-        </div>
-
-        {/* ── Chart + Top categories ───────────────────────── */}
-        <div className="grid md:grid-cols-3 gap-5">
-          <Card className="md:col-span-2 p-5">
-            <div className="flex items-center justify-between mb-5">
-              <h2 className="text-sm font-semibold text-ink">Ingresos vs Gastos</h2>
-              <span className="text-xs text-subtle">Últimos 6 meses</span>
-            </div>
-            <ResponsiveContainer width="100%" height={180}>
-              <AreaChart data={stats.chartData} margin={{ top: 4, right: 4, left: -20, bottom: 0 }}>
-                <defs>
-                  <linearGradient id="gi" x1="0" y1="0" x2="0" y2="1">
-                    <stop offset="5%" stopColor="#16A34A" stopOpacity={0.12} />
-                    <stop offset="95%" stopColor="#16A34A" stopOpacity={0} />
-                  </linearGradient>
-                  <linearGradient id="gg" x1="0" y1="0" x2="0" y2="1">
-                    <stop offset="5%" stopColor="#DC2626" stopOpacity={0.10} />
-                    <stop offset="95%" stopColor="#DC2626" stopOpacity={0} />
-                  </linearGradient>
-                </defs>
-                <CartesianGrid stroke="#F0F0F0" vertical={false} />
-                <XAxis dataKey="month" tick={{ fontSize: 11, fill: '#9CA3AF' }} axisLine={false} tickLine={false} />
-                <YAxis tick={{ fontSize: 10, fill: '#9CA3AF' }} axisLine={false} tickLine={false} tickFormatter={v => `$${(v/1000).toFixed(0)}k`} />
-                <Tooltip content={<CustomTooltip />} />
-                <Area type="monotone" dataKey="ingresos" stroke="#16A34A" strokeWidth={2} fill="url(#gi)" dot={false} />
-                <Area type="monotone" dataKey="gastos"   stroke="#DC2626" strokeWidth={2} fill="url(#gg)"  dot={false} />
-              </AreaChart>
-            </ResponsiveContainer>
-            <div className="flex gap-4 mt-3">
-              <div className="flex items-center gap-1.5"><div className="w-2.5 h-2.5 rounded-full bg-up" /><span className="text-xs text-muted">Ingresos</span></div>
-              <div className="flex items-center gap-1.5"><div className="w-2.5 h-2.5 rounded-full bg-down" /><span className="text-xs text-muted">Gastos</span></div>
-            </div>
-          </Card>
-
-          <Card className="p-5">
-            <div className="flex items-center justify-between mb-4">
-              <h2 className="text-sm font-semibold text-ink">Top Gastos</h2>
-              <button onClick={() => setActiveTab('reports')} className="text-xs text-brand font-medium hover:underline">Ver informe</button>
-            </div>
-            {stats.topCategories.length === 0 ? (
-              <p className="text-xs text-subtle text-center py-8">Sin gastos este mes</p>
-            ) : (
-              <div className="space-y-3">
-                {stats.topCategories.map(({ category, amount, pct }) => {
-                  if (!category) return null;
-                  const c = colorMap[category.color];
-                  return (
-                    <div key={category.id}>
-                      <div className="flex items-center justify-between mb-1">
-                        <div className="flex items-center gap-2">
-                          <span className="text-sm">{category.icon}</span>
-                          <span className="text-xs font-medium text-ink">{category.name}</span>
-                        </div>
-                        <span className="text-xs font-semibold text-down">{formatCompact(amount)}</span>
-                      </div>
-                      <ProgressBar value={pct} color={c.hex} height={3} />
-                    </div>
-                  );
-                })}
+                ))}
               </div>
-            )}
-          </Card>
-        </div>
-
-        {/* ── Recent transactions + right panel ───────────── */}
-        <div className="grid md:grid-cols-3 gap-5">
-          <Card className="md:col-span-2">
-            <div className="flex items-center justify-between px-5 py-4 border-b border-border">
-              <h2 className="text-sm font-semibold text-ink">Movimientos recientes</h2>
-              <button onClick={() => setActiveTab('transactions')} className="flex items-center gap-1 text-xs text-muted hover:text-brand transition-colors">
-                Ver todos <ChevronRight size={12} />
-              </button>
             </div>
-            {recentTx.length === 0 ? (
-              <div className="flex flex-col items-center py-12 text-center">
-                <span className="text-3xl mb-3">📋</span>
-                <p className="text-sm text-muted">Sin movimientos aún</p>
-                <button onClick={() => setActiveTab('transactions')} className="mt-3 text-xs text-brand font-medium hover:underline">
-                  Agregar primero
+          </div>
+        </motion.div>
+
+        <div className="px-4 md:px-8 space-y-4 pb-8 pt-4">
+
+          {/* ── Score + Chart grid ─────────────────────────── */}
+          <div className="grid md:grid-cols-3 gap-4">
+            <motion.div variants={fadeUp}>
+              <div className="bg-card border border-border rounded-2xl p-5 flex flex-col items-center">
+                <p className="section-title mb-5">Salud financiera</p>
+                <ScoreRing score={score} />
+                <div className="w-full mt-5 pt-4 border-t border-border grid grid-cols-3 gap-2 text-center">
+                  <div>
+                    <p className="text-2xs text-muted mb-1">Ahorro</p>
+                    <p className={`text-sm font-black num-display ${savingsRatePct >= 20 ? 'text-up' : savingsRatePct >= 10 ? 'text-warn' : 'text-down'}`}>
+                      {savingsRatePct}%
+                    </p>
+                  </div>
+                  <div>
+                    <p className="text-2xs text-muted mb-1">Neto</p>
+                    <p className={`text-sm font-black num-display ${stats.balance >= 0 ? 'text-up' : 'text-down'}`}>
+                      {stats.balance >= 0 ? '+' : ''}{formatCompact(stats.balance)}
+                    </p>
+                  </div>
+                  <div>
+                    <p className="text-2xs text-muted mb-1">Deudas</p>
+                    <p className={`text-sm font-black ${debtFree ? 'text-up' : 'text-warn'}`}>
+                      {debtFree ? '✓ Ok' : `${activeDebts.length}`}
+                    </p>
+                  </div>
+                </div>
+              </div>
+            </motion.div>
+
+            <motion.div variants={fadeUp} className="md:col-span-2">
+              <div className="bg-card border border-border rounded-2xl p-5 h-full">
+                <div className="flex items-center justify-between mb-5">
+                  <h2 className="font-bold text-ink text-sm">Ingresos vs Gastos</h2>
+                  <span className="text-2xs text-muted bg-surface px-2.5 py-1 rounded-full font-medium">6 meses</span>
+                </div>
+                <ResponsiveContainer width="100%" height={160}>
+                  <AreaChart data={stats.chartData} margin={{ top: 4, right: 4, left: -24, bottom: 0 }}>
+                    <defs>
+                      <linearGradient id="gi" x1="0" y1="0" x2="0" y2="1">
+                        <stop offset="0%"   stopColor="#30D158" stopOpacity={0.2} />
+                        <stop offset="100%" stopColor="#30D158" stopOpacity={0} />
+                      </linearGradient>
+                      <linearGradient id="gg" x1="0" y1="0" x2="0" y2="1">
+                        <stop offset="0%"   stopColor="#FF3B30" stopOpacity={0.15} />
+                        <stop offset="100%" stopColor="#FF3B30" stopOpacity={0} />
+                      </linearGradient>
+                    </defs>
+                    <XAxis dataKey="month" tick={{ fontSize: 10, fill: '#8E8E93', fontWeight: 500 }} axisLine={false} tickLine={false} />
+                    <YAxis tick={{ fontSize: 9, fill: '#8E8E93' }} axisLine={false} tickLine={false} tickFormatter={v => `${(v/1000).toFixed(0)}k`} />
+                    <Tooltip content={<CustomTooltip />} />
+                    <Area type="monotone" dataKey="ingresos" stroke="#30D158" strokeWidth={2.5} fill="url(#gi)" dot={false} />
+                    <Area type="monotone" dataKey="gastos"   stroke="#FF3B30" strokeWidth={2.5} fill="url(#gg)"  dot={false} />
+                  </AreaChart>
+                </ResponsiveContainer>
+                <div className="flex gap-4 mt-3">
+                  <div className="flex items-center gap-1.5"><div className="w-2 h-2 rounded-full bg-up" /><span className="text-2xs text-muted font-medium">Ingresos</span></div>
+                  <div className="flex items-center gap-1.5"><div className="w-2 h-2 rounded-full bg-down" /><span className="text-2xs text-muted font-medium">Gastos</span></div>
+                </div>
+              </div>
+            </motion.div>
+          </div>
+
+          {/* ── Recent transactions ────────────────────────── */}
+          <motion.div variants={fadeUp}>
+            <div className="bg-card border border-border rounded-2xl overflow-hidden">
+              <div className="flex items-center justify-between px-5 py-4">
+                <h2 className="font-bold text-ink text-sm">Movimientos recientes</h2>
+                <button onClick={() => setActiveTab('transactions')} className="flex items-center gap-1 text-xs text-brand font-bold hover:opacity-70 transition-opacity">
+                  Ver todos <ChevronRight size={13} />
                 </button>
               </div>
-            ) : (
-              <div className="divide-y divide-border">
-                {recentTx.map(tx => {
-                  const cat = categories.find(c => c.id === tx.categoryId);
-                  return (
-                    <div key={tx.id} className="flex items-center gap-4 px-5 py-3 hover:bg-surface transition-colors">
-                      <div className="w-8 h-8 rounded-lg bg-surface flex items-center justify-center flex-shrink-0 text-base">
-                        {cat?.icon ?? '💸'}
-                      </div>
-                      <div className="flex-1 min-w-0">
-                        <p className="text-sm font-medium text-ink truncate">{tx.description}</p>
-                        <p className="text-xs text-muted">{cat?.name} · {formatDateShort(tx.date)}</p>
-                      </div>
-                      <span className={`text-sm font-semibold tabular-nums ${tx.type === 'income' ? 'text-up' : 'text-down'}`}>
-                        {tx.type === 'income' ? '+' : '-'}{formatCompact(tx.amount)}
-                      </span>
-                    </div>
-                  );
-                })}
-              </div>
-            )}
-          </Card>
-
-          {/* Right panel */}
-          <div className="space-y-4">
-            {activeGoals.length > 0 && (
-              <Card>
-                <div className="flex items-center justify-between px-4 py-3 border-b border-border">
-                  <h2 className="text-sm font-semibold text-ink">Ahorros</h2>
-                  <button onClick={() => setActiveTab('savings')} className="text-xs text-brand font-medium hover:underline">Ver todo</button>
+              {recentTx.length === 0 ? (
+                <div className="flex flex-col items-center py-12 text-center px-6">
+                  <div className="w-14 h-14 rounded-2xl bg-brand-light flex items-center justify-center mb-3">
+                    <Zap size={22} className="text-brand" />
+                  </div>
+                  <p className="font-semibold text-ink text-sm mb-1">Sin movimientos aún</p>
+                  <p className="text-xs text-muted">Añade tu primer ingreso o gasto</p>
                 </div>
-                <div className="p-4 space-y-3">
-                  {activeGoals.map(goal => {
-                    const pct = percentage(goal.currentAmount, goal.targetAmount);
-                    const c = colorMap[goal.color];
+              ) : (
+                <div className="divide-y divide-border">
+                  {recentTx.map(tx => {
+                    const cat = categories.find(c => c.id === tx.categoryId);
+                    const isIncome = tx.type === 'income';
                     return (
-                      <div key={goal.id}>
-                        <div className="flex items-center justify-between mb-1.5">
-                          <div className="flex items-center gap-2">
-                            <span className="text-sm">{goal.icon}</span>
-                            <span className="text-xs font-medium text-ink truncate max-w-[100px]">{goal.name}</span>
-                          </div>
-                          <span className="text-xs text-muted tabular-nums">{pct}%</span>
+                      <div key={tx.id} className="flex items-center gap-4 px-5 py-3.5 hover:bg-surface transition-colors">
+                        <div
+                          className="w-10 h-10 rounded-2xl flex items-center justify-center flex-shrink-0 text-lg"
+                          style={{ backgroundColor: isIncome ? 'rgba(48,209,88,0.12)' : 'rgba(255,59,48,0.10)' }}
+                        >
+                          {cat?.icon ?? '💸'}
                         </div>
-                        <ProgressBar value={pct} color={c.hex} height={3} />
+                        <div className="flex-1 min-w-0">
+                          <p className="text-sm font-semibold text-ink truncate">{tx.description}</p>
+                          <p className="text-xs text-muted">{cat?.name} · {formatDateShort(tx.date)}</p>
+                        </div>
+                        <span className={`text-sm font-black num-display ${isIncome ? 'text-up' : 'text-down'}`}>
+                          {isIncome ? '+' : '-'}{formatCompact(tx.amount)}
+                        </span>
                       </div>
                     );
                   })}
                 </div>
-              </Card>
-            )}
-
-            {activeDebts.length > 0 && (
-              <Card>
-                <div className="flex items-center justify-between px-4 py-3 border-b border-border">
-                  <h2 className="text-sm font-semibold text-ink">Deudas</h2>
-                  <button onClick={() => setActiveTab('debts')} className="text-xs text-brand font-medium hover:underline">Ver todo</button>
-                </div>
-                <div className="divide-y divide-border">
-                  {activeDebts.map(debt => (
-                    <div key={debt.id} className="flex items-center gap-3 px-4 py-3">
-                      <span className="text-base">{debt.icon}</span>
-                      <div className="flex-1 min-w-0">
-                        <p className="text-xs font-medium text-ink truncate">{debt.name}</p>
-                        <p className="text-2xs text-subtle">{debt.creditor}</p>
-                      </div>
-                      <span className="text-xs font-semibold text-down tabular-nums">{formatCompact(debt.remainingAmount)}</span>
-                    </div>
-                  ))}
-                </div>
-              </Card>
-            )}
-
-            {activeGoals.length === 0 && activeDebts.length === 0 && (
-              <Card padding className="flex flex-col items-center text-center py-8">
-                <span className="text-3xl mb-2">🎯</span>
-                <p className="text-xs text-muted">Crea metas de ahorro o registra deudas.</p>
-              </Card>
-            )}
-          </div>
-        </div>
-
-        {/* Empty state */}
-        {transactions.length === 0 && (
-          <Card padding className="flex flex-col items-center text-center py-12 mt-2">
-            <div className="w-16 h-16 rounded-2xl bg-brand-light flex items-center justify-center mb-4">
-              <span className="text-3xl">💰</span>
+              )}
             </div>
-            <h3 className="font-semibold text-ink text-base mb-1">Bienvenido a Mi Finanzas</h3>
-            <p className="text-sm text-muted max-w-xs mb-5">
-              Empieza registrando tu primer ingreso o gasto para tomar control de tus finanzas.
-            </p>
-            <Button onClick={() => setActiveTab('transactions')}>
-              <Plus size={15} /> Agregar movimiento
-            </Button>
-          </Card>
-        )}
+          </motion.div>
 
-      </div>
+          {/* ── Bottom: Top spending + Goals/Debts ──────────── */}
+          <div className="grid md:grid-cols-2 gap-4">
+            <motion.div variants={fadeUp}>
+              <div className="bg-card border border-border rounded-2xl p-5">
+                <div className="flex items-center justify-between mb-4">
+                  <h2 className="font-bold text-ink text-sm">Top Gastos</h2>
+                  <button onClick={() => setActiveTab('reports')} className="text-xs text-brand font-bold hover:opacity-70 transition-opacity">Informes</button>
+                </div>
+                {stats.topCategories.length === 0 ? (
+                  <p className="text-xs text-muted text-center py-8">Sin gastos este mes</p>
+                ) : (
+                  <div className="space-y-4">
+                    {stats.topCategories.map(({ category, amount, pct }) => {
+                      if (!category) return null;
+                      const c = colorMap[category.color];
+                      return (
+                        <div key={category.id}>
+                          <div className="flex items-center justify-between mb-2">
+                            <div className="flex items-center gap-2.5">
+                              <div className="w-8 h-8 rounded-xl flex items-center justify-center text-sm" style={{ backgroundColor: `${c.hex}18` }}>
+                                {category.icon}
+                              </div>
+                              <span className="text-sm font-semibold text-ink">{category.name}</span>
+                            </div>
+                            <div className="text-right">
+                              <span className="text-sm font-black text-down num-display">{formatCompact(amount)}</span>
+                              <span className="text-2xs text-muted ml-1">{pct.toFixed(0)}%</span>
+                            </div>
+                          </div>
+                          <ProgressBar value={pct} color={c.hex} height={3} />
+                        </div>
+                      );
+                    })}
+                  </div>
+                )}
+              </div>
+            </motion.div>
+
+            <motion.div variants={fadeUp} className="space-y-4">
+              {activeGoals.length > 0 && (
+                <div className="bg-card border border-border rounded-2xl overflow-hidden">
+                  <div className="flex items-center justify-between px-5 py-4">
+                    <h2 className="font-bold text-ink text-sm">Metas</h2>
+                    <button onClick={() => setActiveTab('savings')} className="text-xs text-brand font-bold hover:opacity-70 transition-opacity">Ver todo</button>
+                  </div>
+                  <div className="px-5 pb-4 space-y-3">
+                    {activeGoals.map(goal => {
+                      const pct = percentage(goal.currentAmount, goal.targetAmount);
+                      const c = colorMap[goal.color];
+                      return (
+                        <div key={goal.id}>
+                          <div className="flex items-center justify-between mb-1.5">
+                            <div className="flex items-center gap-2">
+                              <span className="text-base">{goal.icon}</span>
+                              <span className="text-sm font-semibold text-ink truncate max-w-[120px]">{goal.name}</span>
+                            </div>
+                            <span className="text-xs font-bold text-muted num-display">{pct}%</span>
+                          </div>
+                          <ProgressBar value={pct} color={c.hex} height={4} />
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+              )}
+
+              {activeDebts.length > 0 && (
+                <div className="bg-card border border-border rounded-2xl overflow-hidden">
+                  <div className="flex items-center justify-between px-5 py-4">
+                    <h2 className="font-bold text-ink text-sm">Deudas</h2>
+                    <button onClick={() => setActiveTab('debts')} className="text-xs text-brand font-bold hover:opacity-70 transition-opacity">Ver todo</button>
+                  </div>
+                  <div className="divide-y divide-border">
+                    {activeDebts.map(debt => (
+                      <div key={debt.id} className="flex items-center gap-3 px-5 py-3">
+                        <div className="w-9 h-9 rounded-xl bg-down-light flex items-center justify-center text-base flex-shrink-0">{debt.icon}</div>
+                        <div className="flex-1 min-w-0">
+                          <p className="text-sm font-semibold text-ink truncate">{debt.name}</p>
+                          <p className="text-2xs text-muted">{debt.creditor}</p>
+                        </div>
+                        <span className="text-sm font-black text-down num-display">{formatCompact(debt.remainingAmount)}</span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {activeGoals.length === 0 && activeDebts.length === 0 && (
+                <div className="bg-card border border-border rounded-2xl p-6 flex flex-col items-center text-center">
+                  <div className="w-12 h-12 rounded-2xl gradient-brand flex items-center justify-center mb-3 shadow-brand-sm">
+                    <Sparkles size={20} className="text-white" />
+                  </div>
+                  <p className="text-sm font-bold text-ink mb-1">Todo en orden</p>
+                  <p className="text-xs text-muted">Crea metas o registra tus deudas</p>
+                </div>
+              )}
+            </motion.div>
+          </div>
+
+          {/* Empty state */}
+          {transactions.length === 0 && (
+            <motion.div variants={fadeUp}>
+              <div
+                className="rounded-3xl p-8 flex flex-col items-center text-center"
+                style={{ background: 'linear-gradient(135deg, rgba(88,86,214,0.08) 0%, rgba(10,132,255,0.06) 100%)', border: '1px solid rgba(10,132,255,0.15)' }}
+              >
+                <div className="w-16 h-16 rounded-3xl gradient-brand flex items-center justify-center mb-4 shadow-brand">
+                  <Zap size={28} className="text-white" strokeWidth={2.5} />
+                </div>
+                <h3 className="font-black text-ink text-xl mb-2">Bienvenido a FinanzApp</h3>
+                <p className="text-sm text-muted max-w-xs mb-6 leading-relaxed">
+                  Empieza registrando tu primer ingreso o gasto para tomar el control de tus finanzas personales.
+                </p>
+                <button
+                  onClick={() => setActiveTab('transactions')}
+                  className="px-8 py-3.5 rounded-2xl gradient-brand text-white text-sm font-bold shadow-brand hover:opacity-90 transition-opacity"
+                >
+                  Añadir movimiento
+                </button>
+              </div>
+            </motion.div>
+          )}
+
+        </div>
+      </motion.div>
     </PageWrapper>
   );
 }
