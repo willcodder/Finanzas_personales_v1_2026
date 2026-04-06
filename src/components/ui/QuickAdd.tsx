@@ -1,6 +1,6 @@
 import { useState, useRef, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Plus, X, Check } from 'lucide-react';
+import { Plus, X, Check, Zap } from 'lucide-react';
 import { useStore } from '../../store/useStore';
 import type { TransactionType } from '../../types';
 import { colorMap } from '../../utils/colors';
@@ -16,7 +16,7 @@ export function QuickAdd() {
   const [done, setDone]           = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
 
-  // Auto-open from URL params (Apple Shortcut: ?q=expense&a=25)
+  // Auto-open from URL params (Apple Shortcut)
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
     const q = params.get('q');
@@ -25,25 +25,22 @@ export function QuickAdd() {
       setType(q as TransactionType);
       if (a) setAmount(a);
       setOpen(true);
-      // Clean URL without reload
       window.history.replaceState({}, '', window.location.pathname);
     }
   }, []);
 
   const cats = categories.filter(c => c.type === type || c.type === 'both');
   const isExpense = type === 'expense';
-  const accentColor = isExpense ? '#DC2626' : '#16A34A';
+  const accentColor = isExpense ? '#FF3B30' : '#30D158';
 
-  // Auto-select first category when type changes
   useEffect(() => {
     if (cats.length > 0) setCategoryId(cats[0].id);
   }, [type]);
 
-  // Focus amount on open
   useEffect(() => {
     if (open) {
       setCategoryId(cats[0]?.id ?? '');
-      setTimeout(() => inputRef.current?.focus(), 300);
+      setTimeout(() => inputRef.current?.focus(), 350);
     } else {
       setAmount('');
       setDescription('');
@@ -65,40 +62,35 @@ export function QuickAdd() {
       accountId: accountId || undefined,
     });
     setDone(true);
-    setTimeout(() => setOpen(false), 600);
+    setTimeout(() => setOpen(false), 700);
   };
 
-  // Number pad key
   const pad = (v: string) => {
-    if (v === '⌫') {
-      setAmount(a => a.slice(0, -1));
-      return;
-    }
+    if (v === '⌫') { setAmount(a => a.slice(0, -1)); return; }
     if (v === '.' && amount.includes('.')) return;
     if (amount.length >= 9) return;
-    // Max 2 decimals
     const [, dec] = (amount + v).split('.');
     if (dec && dec.length > 2) return;
     setAmount(a => a + v);
   };
 
-  const PAD = [
-    ['1','2','3'],
-    ['4','5','6'],
-    ['7','8','9'],
-    ['.','0','⌫'],
-  ];
+  const PAD = [['1','2','3'],['4','5','6'],['7','8','9'],['.','0','⌫']];
 
   return (
     <>
-      {/* FAB — mobile only, above bottom nav */}
+      {/* FAB */}
       <motion.button
-        className="md:hidden fixed bottom-[72px] right-4 z-40 w-14 h-14 rounded-full bg-brand shadow-dropdown flex items-center justify-center"
+        className="md:hidden fixed z-40 w-14 h-14 rounded-full shadow-brand flex items-center justify-center"
+        style={{
+          bottom: 80,
+          right: 16,
+          background: 'linear-gradient(135deg, #5856D6 0%, #0A84FF 100%)',
+        }}
         onClick={() => setOpen(true)}
-        whileTap={{ scale: 0.92 }}
+        whileTap={{ scale: 0.90 }}
         initial={{ scale: 0, opacity: 0 }}
         animate={{ scale: 1, opacity: 1 }}
-        transition={{ type: 'spring', damping: 20, stiffness: 300, delay: 0.3 }}
+        transition={{ type: 'spring', damping: 20, stiffness: 300, delay: 0.4 }}
       >
         <Plus size={26} className="text-white" strokeWidth={2.5} />
       </motion.button>
@@ -109,48 +101,53 @@ export function QuickAdd() {
           <>
             {/* Backdrop */}
             <motion.div
-              className="md:hidden fixed inset-0 bg-black/40 z-50"
+              className="md:hidden fixed inset-0 z-50"
+              style={{ backgroundColor: 'rgba(0,0,0,0.6)' }}
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
               exit={{ opacity: 0 }}
               onClick={() => setOpen(false)}
             />
 
-            {/* Sheet */}
+            {/* Sheet — always dark like Revolut */}
             <motion.div
-              className="md:hidden fixed bottom-0 left-0 right-0 z-50 bg-card rounded-t-3xl overflow-hidden"
+              className="md:hidden fixed bottom-0 left-0 right-0 z-50 rounded-t-3xl overflow-hidden"
+              style={{ backgroundColor: '#1C1C1E' }}
               initial={{ y: '100%' }}
               animate={{ y: 0 }}
               exit={{ y: '100%' }}
               transition={{ type: 'spring', damping: 32, stiffness: 300 }}
             >
               {/* Handle */}
-              <div className="flex justify-center pt-3 pb-1">
-                <div className="w-9 h-1 rounded-full bg-border" />
+              <div className="flex justify-center pt-3 pb-2">
+                <div className="w-10 h-1 rounded-full bg-white/20" />
               </div>
 
               {/* Header */}
-              <div className="flex items-center justify-between px-5 pb-3">
-                <h2 className="text-base font-semibold text-ink">Añadir movimiento</h2>
-                <button onClick={() => setOpen(false)} className="w-7 h-7 rounded-full bg-surface flex items-center justify-center">
-                  <X size={14} className="text-muted" />
+              <div className="flex items-center justify-between px-5 pb-4">
+                <div className="flex items-center gap-2">
+                  <div className="w-7 h-7 rounded-xl flex items-center justify-center" style={{ background: 'linear-gradient(135deg, #5856D6, #0A84FF)' }}>
+                    <Zap size={13} className="text-white" strokeWidth={2.5} />
+                  </div>
+                  <h2 className="text-base font-black text-white">Añadir movimiento</h2>
+                </div>
+                <button onClick={() => setOpen(false)} className="w-8 h-8 rounded-full bg-white/10 flex items-center justify-center">
+                  <X size={14} className="text-white/70" />
                 </button>
               </div>
 
               {/* Type toggle */}
-              <div className="px-5 mb-4">
-                <div className="flex p-1 bg-surface rounded-xl border border-border gap-1">
+              <div className="px-5 mb-5">
+                <div className="flex p-1 rounded-2xl gap-1" style={{ backgroundColor: 'rgba(255,255,255,0.08)' }}>
                   {(['expense','income'] as TransactionType[]).map(t => (
                     <button
                       key={t}
                       onClick={() => setType(t)}
-                      className={`flex-1 py-2.5 rounded-lg text-sm font-semibold transition-all ${
-                        type === t
-                          ? t === 'expense'
-                            ? 'bg-down text-white shadow-sm'
-                            : 'bg-up text-white shadow-sm'
-                          : 'text-muted'
-                      }`}
+                      className="flex-1 py-3 rounded-xl text-sm font-black transition-all"
+                      style={type === t ? {
+                        backgroundColor: t === 'expense' ? '#FF3B30' : '#30D158',
+                        color: 'white',
+                      } : { color: 'rgba(255,255,255,0.45)' }}
                     >
                       {t === 'expense' ? '↓ Gasto' : '↑ Ingreso'}
                     </button>
@@ -159,18 +156,21 @@ export function QuickAdd() {
               </div>
 
               {/* Amount display */}
-              <div className="px-5 mb-3 flex items-end gap-2">
-                <span className="text-2xl font-light text-muted pb-0.5">€</span>
-                <div
-                  className="flex-1 text-4xl font-bold text-ink tracking-tight pb-1 border-b-2 min-h-[52px] flex items-end"
-                  style={{ borderColor: accentColor }}
-                >
-                  {amount || <span className="text-subtle font-light">0</span>}
+              <div className="px-5 mb-5">
+                <p className="text-white/40 text-2xs font-bold uppercase tracking-widest mb-2 text-center">Importe</p>
+                <div className="flex items-end justify-center gap-2">
+                  <span className="text-3xl font-light pb-1" style={{ color: 'rgba(255,255,255,0.5)' }}>€</span>
+                  <div
+                    className="text-5xl font-black tracking-tight pb-1 border-b-2 min-w-[120px] flex items-end justify-center num-display"
+                    style={{ color: amount ? 'white' : 'rgba(255,255,255,0.25)', borderColor: accentColor }}
+                  >
+                    {amount || '0'}
+                  </div>
                 </div>
               </div>
 
-              {/* Category chips */}
-              <div className="px-5 mb-3">
+              {/* Categories */}
+              <div className="px-5 mb-4">
                 <div className="flex gap-2 overflow-x-auto pb-1 scrollbar-hide">
                   {cats.map(cat => {
                     const c = colorMap[cat.color];
@@ -179,10 +179,11 @@ export function QuickAdd() {
                       <button
                         key={cat.id}
                         onClick={() => setCategoryId(cat.id)}
-                        className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium flex-shrink-0 transition-all border ${
-                          sel ? 'border-transparent text-white' : 'border-border bg-surface text-muted'
-                        }`}
-                        style={sel ? { backgroundColor: c.hex } : {}}
+                        className="flex items-center gap-1.5 px-3.5 py-2 rounded-full text-xs font-bold flex-shrink-0 transition-all"
+                        style={sel
+                          ? { backgroundColor: c.hex, color: 'white' }
+                          : { backgroundColor: 'rgba(255,255,255,0.08)', color: 'rgba(255,255,255,0.55)' }
+                        }
                       >
                         <span>{cat.icon}</span>{cat.name}
                       </button>
@@ -191,14 +192,15 @@ export function QuickAdd() {
                 </div>
               </div>
 
-              {/* Description + account row */}
-              <div className="px-5 mb-3 flex gap-2">
+              {/* Description + account */}
+              <div className="px-5 mb-4 flex gap-2">
                 <input
                   ref={inputRef}
                   value={description}
                   onChange={e => setDescription(e.target.value)}
                   placeholder="Descripción (opcional)"
-                  className="flex-1 bg-surface border border-border rounded-xl px-3 py-2.5 text-sm text-ink placeholder:text-subtle"
+                  className="flex-1 rounded-xl px-4 py-3 text-sm font-medium placeholder:text-white/30 text-white"
+                  style={{ backgroundColor: 'rgba(255,255,255,0.08)', border: '1px solid rgba(255,255,255,0.08)' }}
                   readOnly
                   onFocus={e => { e.target.readOnly = false; }}
                 />
@@ -206,7 +208,8 @@ export function QuickAdd() {
                   <select
                     value={accountId}
                     onChange={e => setAccountId(e.target.value)}
-                    className="bg-surface border border-border rounded-xl px-2 py-2 text-xs text-ink w-28"
+                    className="rounded-xl px-3 py-2 text-xs font-medium text-white w-28"
+                    style={{ backgroundColor: 'rgba(255,255,255,0.08)', border: '1px solid rgba(255,255,255,0.08)' }}
                   >
                     <option value="">Sin cuenta</option>
                     {accounts.map(a => (
@@ -216,21 +219,22 @@ export function QuickAdd() {
                 )}
               </div>
 
-              {/* Number pad */}
-              <div className="px-4 mb-2">
+              {/* Numpad */}
+              <div className="px-4 mb-3">
                 <div className="grid grid-cols-3 gap-2">
                   {PAD.flat().map((k, i) => {
-                    const isBackspace = k === '⌫';
+                    const isBack = k === '⌫';
                     return (
                       <motion.button
                         key={i}
                         onClick={() => pad(k)}
-                        className={`h-12 rounded-xl text-lg font-semibold flex items-center justify-center transition-colors ${
-                          isBackspace
-                            ? 'bg-surface text-muted text-base'
-                            : 'bg-surface text-ink active:bg-border'
-                        }`}
-                        whileTap={{ scale: 0.93 }}
+                        className="h-13 rounded-2xl text-lg font-black flex items-center justify-center transition-all"
+                        style={{
+                          height: 52,
+                          backgroundColor: isBack ? 'rgba(255,255,255,0.05)' : 'rgba(255,255,255,0.08)',
+                          color: isBack ? 'rgba(255,255,255,0.5)' : 'white',
+                        }}
+                        whileTap={{ scale: 0.9, backgroundColor: 'rgba(255,255,255,0.18)' }}
                       >
                         {k}
                       </motion.button>
@@ -240,16 +244,17 @@ export function QuickAdd() {
               </div>
 
               {/* Submit */}
-              <div className="px-4 pb-6 pt-1">
+              <div className="px-4 pb-8">
                 <motion.button
                   onClick={submit}
                   disabled={!canSubmit}
-                  className={`w-full h-14 rounded-2xl flex items-center justify-center gap-2 text-base font-semibold text-white transition-all ${
-                    canSubmit ? 'opacity-100' : 'opacity-40'
-                  }`}
-                  style={{ backgroundColor: done ? '#16A34A' : accentColor }}
+                  className="w-full h-14 rounded-2xl flex items-center justify-center gap-2 text-base font-black text-white transition-all"
+                  style={{
+                    backgroundColor: done ? '#30D158' : canSubmit ? accentColor : 'rgba(255,255,255,0.12)',
+                    opacity: canSubmit ? 1 : 0.5,
+                  }}
                   whileTap={canSubmit ? { scale: 0.97 } : {}}
-                  animate={done ? { scale: [1, 1.04, 1] } : {}}
+                  animate={done ? { scale: [1, 1.03, 1] } : {}}
                 >
                   {done
                     ? <><Check size={20} /> Guardado</>

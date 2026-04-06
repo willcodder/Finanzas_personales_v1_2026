@@ -7,18 +7,36 @@ interface CardProps {
   onClick?: () => void;
   animate?: boolean;
   padding?: boolean;
+  glass?: boolean;
+  gradient?: boolean;
 }
 
-export function Card({ children, className = '', onClick, animate = false, padding = false }: CardProps) {
-  const base =
-    'bg-card rounded-2xl overflow-hidden border border-border' + (padding ? ' p-5' : '');
+export function Card({
+  children,
+  className = '',
+  onClick,
+  animate = false,
+  padding = false,
+  glass = false,
+  gradient = false,
+}: CardProps) {
+  const base = [
+    glass
+      ? 'glass-card'
+      : gradient
+        ? 'gradient-brand'
+        : 'bg-card border border-border',
+    'rounded-2xl overflow-hidden',
+    padding ? 'p-5' : '',
+    onClick ? 'cursor-pointer' : '',
+  ].join(' ');
 
   if (animate && onClick) {
     return (
       <motion.div
-        className={`${base} ${className} cursor-pointer`}
+        className={`${base} ${className}`}
         onClick={onClick}
-        whileTap={{ scale: 0.97 }}
+        whileTap={{ scale: 0.975 }}
         transition={{ duration: 0.1 }}
       >
         {children}

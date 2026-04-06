@@ -1,13 +1,13 @@
 import { motion } from 'framer-motion';
 import {
   LayoutDashboard, ArrowLeftRight, PiggyBank, CreditCard,
-  BarChart2, Moon, Sun, Wallet, Landmark, UserX
+  BarChart2, Moon, Sun, Landmark, UserX, Zap
 } from 'lucide-react';
 import { useStore } from '../../store/useStore';
 import type { TabName } from '../../types';
 
 const nav: { id: TabName; label: string; icon: React.FC<{ size?: number; strokeWidth?: number }> }[] = [
-  { id: 'dashboard',    label: 'Dashboard',    icon: LayoutDashboard },
+  { id: 'dashboard',    label: 'Inicio',       icon: LayoutDashboard },
   { id: 'accounts',     label: 'Cuentas',      icon: Landmark },
   { id: 'transactions', label: 'Movimientos',  icon: ArrowLeftRight },
   { id: 'savings',      label: 'Ahorros',      icon: PiggyBank },
@@ -22,37 +22,54 @@ export function Sidebar() {
   return (
     <aside className="hidden md:flex fixed inset-y-0 left-0 w-56 flex-col bg-sidebar z-40">
       {/* Logo */}
-      <div className="px-5 pt-6 pb-5 border-b border-white/5">
-        <div className="flex items-center gap-2.5">
-          <div className="w-7 h-7 rounded-lg bg-brand flex items-center justify-center flex-shrink-0">
-            <Wallet size={14} className="text-white" />
+      <div className="px-5 pt-7 pb-6">
+        <div className="flex items-center gap-3">
+          <div className="w-8 h-8 rounded-xl gradient-brand flex items-center justify-center flex-shrink-0 shadow-brand-sm">
+            <Zap size={15} className="text-white" strokeWidth={2.5} />
           </div>
-          <span className="text-white font-semibold text-sm tracking-tight">Mi Finanzas</span>
+          <div>
+            <span className="text-white font-bold text-sm tracking-tight">FinanzApp</span>
+            <p className="text-white/30 text-2xs font-medium">Personal Finance</p>
+          </div>
         </div>
       </div>
 
+      {/* Divider */}
+      <div className="mx-4 h-px bg-white/5 mb-3" />
+
       {/* Nav */}
-      <nav className="flex-1 px-3 py-4 space-y-0.5 overflow-y-auto">
-        <p className="text-2xs font-semibold text-white/25 uppercase tracking-widest px-2 mb-3">General</p>
+      <nav className="flex-1 px-3 py-1 space-y-0.5 overflow-y-auto scrollbar-hide">
+        <p className="text-2xs font-semibold text-white/20 uppercase tracking-widest px-3 mb-2">Menu</p>
         {nav.map(({ id, label, icon: Icon }) => {
           const active = activeTab === id;
           return (
             <button
               key={id}
               onClick={() => setActiveTab(id)}
-              className={`w-full flex items-center gap-2.5 px-2.5 py-2 rounded-lg text-sm transition-colors duration-100 ${
+              className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition-all duration-150 relative ${
                 active
-                  ? 'bg-white/10 text-white'
-                  : 'text-white/45 hover:text-white/80 hover:bg-white/5'
+                  ? 'text-white'
+                  : 'text-white/40 hover:text-white/75 hover:bg-white/5'
               }`}
             >
-              <Icon size={16} strokeWidth={active ? 2.2 : 1.8} />
-              <span className="font-medium">{label}</span>
+              {active && (
+                <motion.div
+                  layoutId="sidebarBg"
+                  className="absolute inset-0 rounded-xl"
+                  style={{ background: 'linear-gradient(135deg, rgba(88,86,214,0.5) 0%, rgba(10,132,255,0.3) 100%)', border: '1px solid rgba(255,255,255,0.08)' }}
+                  transition={{ type: 'spring', damping: 28, stiffness: 380 }}
+                />
+              )}
+              <Icon
+                size={16}
+                strokeWidth={active ? 2.2 : 1.8}
+              />
+              <span className="relative z-10 flex-1 text-left">{label}</span>
               {active && (
                 <motion.div
                   layoutId="sidebarDot"
-                  className="ml-auto w-1.5 h-1.5 rounded-full bg-brand"
-                  transition={{ type: 'spring', damping: 25, stiffness: 350 }}
+                  className="relative z-10 w-1.5 h-1.5 rounded-full bg-brand"
+                  transition={{ type: 'spring', damping: 28, stiffness: 380 }}
                 />
               )}
             </button>
@@ -61,13 +78,14 @@ export function Sidebar() {
       </nav>
 
       {/* Bottom */}
-      <div className="px-3 pb-5 border-t border-white/5 pt-3">
+      <div className="mx-4 h-px bg-white/5 mb-3" />
+      <div className="px-3 pb-6">
         <button
           onClick={toggleDark}
-          className="w-full flex items-center gap-2.5 px-2.5 py-2 rounded-lg text-sm text-white/45 hover:text-white/80 hover:bg-white/5 transition-colors"
+          className="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm text-white/40 hover:text-white/75 hover:bg-white/5 transition-all duration-150"
         >
           {isDark
-            ? <Sun size={16} strokeWidth={1.8} className="text-yellow-400" />
+            ? <Sun size={16} strokeWidth={1.8} className="text-yellow-400/80" />
             : <Moon size={16} strokeWidth={1.8} />}
           <span className="font-medium">{isDark ? 'Modo claro' : 'Modo oscuro'}</span>
         </button>

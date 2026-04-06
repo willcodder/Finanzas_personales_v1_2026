@@ -1,48 +1,66 @@
-@import url("https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap");
+@import url("https://fonts.googleapis.com/css2?family=Inter:ital,opsz,wght@0,14..32,300;0,14..32,400;0,14..32,500;0,14..32,600;0,14..32,700;0,14..32,800;1,14..32,400&display=swap");
 
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
 
-/* CSS Variables */
+/* ── Revolut-Inspired Design System ──────────────────────────────── */
 :root {
-  --color-surface: 247 247 248;
-  --color-card: 255 255 255;
-  --color-border: 235 235 235;
-  --color-border-strong: 212 212 212;
-  --color-ink: 17 17 17;
-  --color-muted: 107 114 128;
-  --color-subtle: 156 163 175;
-  --color-brand-light: 238 242 255;
-  --color-up-light: 240 253 244;
-  --color-down-light: 254 242 242;
-  --color-warn-light: 255 251 235;
+  /* Surfaces */
+  --color-surface:      242 242 247;   /* iOS-style light grey */
+  --color-card:         255 255 255;
+  --color-card-elevated: 255 255 255;
+  --color-border:       229 229 234;
+  --color-border-strong: 199 199 204;
+  --color-border-subtle: 242 242 247;
+
+  /* Text */
+  --color-ink:          0 0 0;
+  --color-ink-secondary: 60 60 67;
+  --color-muted:        142 142 147;   /* iOS secondary label */
+  --color-subtle:       174 174 178;   /* iOS tertiary label */
+
+  /* Semantic */
+  --color-brand-light:  235 242 255;
+  --color-up-light:     230 255 240;
+  --color-down-light:   255 235 235;
+  --color-warn-light:   255 246 228;
 }
 
 .dark {
-  --color-surface: 10 10 10;
-  --color-card: 20 20 20;
-  --color-border: 38 38 38;
-  --color-border-strong: 55 55 55;
-  --color-ink: 241 241 241;
-  --color-muted: 156 163 175;
-  --color-subtle: 107 114 128;
-  --color-brand-light: 30 27 75;
-  --color-up-light: 5 46 22;
-  --color-down-light: 69 10 10;
-  --color-warn-light: 69 26 3;
+  /* Surfaces — true black Revolut aesthetic */
+  --color-surface:      10 10 10;
+  --color-card:         28 28 30;      /* iOS dark card */
+  --color-card-elevated: 38 38 40;
+  --color-border:       44 44 46;      /* iOS separator */
+  --color-border-strong: 72 72 74;
+  --color-border-subtle: 22 22 24;
+
+  /* Text */
+  --color-ink:          255 255 255;
+  --color-ink-secondary: 235 235 245;
+  --color-muted:        142 142 147;
+  --color-subtle:       99 99 102;
+
+  /* Semantic */
+  --color-brand-light:  28 26 60;
+  --color-up-light:     10 50 30;
+  --color-down-light:   60 15 15;
+  --color-warn-light:   60 35 5;
 }
 
+/* ── Base ──────────────────────────────────────────────────────────── */
 * {
   -webkit-tap-highlight-color: transparent;
   box-sizing: border-box;
 }
 
 html {
-  font-family: "Inter", -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  font-family: "Inter", -apple-system, BlinkMacSystemFont, "SF Pro Display", "Segoe UI", sans-serif;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
   text-rendering: optimizeLegibility;
+  font-feature-settings: "cv01", "cv02", "cv03", "cv04", "tnum";
 }
 
 body {
@@ -51,9 +69,7 @@ body {
   color: rgb(var(--color-ink));
 }
 
-#root {
-  min-height: 100vh;
-}
+#root { min-height: 100vh; }
 
 input, textarea, select, button {
   outline: none;
@@ -66,18 +82,101 @@ input[type=number]::-webkit-outer-spin-button {
   margin: 0;
 }
 
-::-webkit-scrollbar { width: 4px; height: 4px; }
+/* ── Scrollbar ─────────────────────────────────────────────────────── */
+::-webkit-scrollbar { width: 3px; height: 3px; }
 ::-webkit-scrollbar-track { background: transparent; }
-::-webkit-scrollbar-thumb { background: #D4D4D4; border-radius: 4px; }
-
+::-webkit-scrollbar-thumb { background: rgba(142,142,147,0.3); border-radius: 4px; }
+::-webkit-scrollbar-thumb:hover { background: rgba(142,142,147,0.5); }
 .scrollbar-hide::-webkit-scrollbar { display: none; }
 .scrollbar-hide { -ms-overflow-style: none; scrollbar-width: none; }
 
+/* ── Brand Gradient ────────────────────────────────────────────────── */
+.gradient-brand {
+  background: linear-gradient(135deg, #5856D6 0%, #0A84FF 100%);
+}
+.gradient-brand-text {
+  background: linear-gradient(135deg, #5856D6 0%, #0A84FF 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+.gradient-income {
+  background: linear-gradient(135deg, #00C853 0%, #30D158 100%);
+}
+.gradient-expense {
+  background: linear-gradient(135deg, #FF3B30 0%, #FF6B6B 100%);
+}
+
+/* ── Glass morphism card ───────────────────────────────────────────── */
+.glass-card {
+  background: rgba(255, 255, 255, 0.08);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+}
+
+/* ── Component Utilities ───────────────────────────────────────────── */
 @layer components {
-  .kpi-card { @apply bg-card rounded-xl border border-border p-5 flex flex-col gap-2; }
-  .section-title { @apply text-sm font-semibold text-ink; }
-  .badge { @apply inline-flex items-center px-2 py-0.5 rounded text-2xs font-medium; }
-  .btn-primary { @apply bg-brand text-white rounded-lg px-4 py-2 text-sm font-medium hover:bg-indigo-600 transition-colors; }
-  .btn-ghost { @apply text-muted hover:text-ink hover:bg-surface rounded-lg px-3 py-1.5 text-sm font-medium transition-colors; }
-  .input-field { @apply w-full bg-surface border border-border rounded-lg px-3 py-2.5 text-sm text-ink placeholder:text-subtle focus:border-brand transition-colors; }
+  .kpi-card {
+    @apply bg-card rounded-2xl border border-border p-5 flex flex-col gap-2;
+  }
+
+  .section-title {
+    @apply text-xs font-semibold text-muted uppercase tracking-widest;
+  }
+
+  .badge {
+    @apply inline-flex items-center px-2 py-0.5 rounded-full text-2xs font-semibold;
+  }
+
+  /* Revolut-style pill button */
+  .btn-primary {
+    @apply gradient-brand text-white rounded-2xl px-5 py-2.5 text-sm font-semibold
+           hover:opacity-90 transition-opacity shadow-brand;
+  }
+
+  .btn-ghost {
+    @apply text-muted hover:text-ink hover:bg-card rounded-xl px-3 py-2 text-sm font-medium
+           transition-colors;
+  }
+
+  .input-field {
+    @apply w-full bg-surface border border-border rounded-xl px-4 py-3 text-sm text-ink
+           placeholder:text-subtle focus:border-brand focus:ring-2 focus:ring-brand/10
+           transition-all;
+  }
+
+  /* Tab pill */
+  .tab-pill {
+    @apply px-4 py-1.5 rounded-full text-sm font-semibold transition-all;
+  }
+  .tab-pill.active {
+    @apply bg-ink text-surface shadow-sm;
+  }
+  .tab-pill:not(.active) {
+    @apply text-muted hover:text-ink;
+  }
+}
+
+/* ── Number display style ──────────────────────────────────────────── */
+.num-display {
+  font-variant-numeric: tabular-nums;
+  font-feature-settings: "tnum";
+  letter-spacing: -0.02em;
+}
+
+/* ── Revolut card style ────────────────────────────────────────────── */
+.rev-card {
+  background: rgb(var(--color-card));
+  border-radius: 20px;
+  overflow: hidden;
+}
+
+/* ── Page transition ───────────────────────────────────────────────── */
+.page-enter {
+  animation: pageEnter 0.25s cubic-bezier(0.25, 0.46, 0.45, 0.94);
+}
+@keyframes pageEnter {
+  from { opacity: 0; transform: translateY(8px); }
+  to   { opacity: 1; transform: translateY(0); }
 }
