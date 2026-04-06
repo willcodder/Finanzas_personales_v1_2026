@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Plus, Trash2, ChevronDown, ChevronUp, CheckCircle2 } from 'lucide-react';
+import { Plus, Trash2, ChevronDown, ChevronUp } from 'lucide-react';
 import { useStore } from '../store/useStore';
 import type { Debt, CategoryColor } from '../types';
 import { PageWrapper } from '../components/layout/PageWrapper';
@@ -106,7 +106,7 @@ function PaymentForm({ debt, onClose }: { debt: Debt; onClose: () => void }) {
   );
 }
 
-function DebtRow({ debt }: { debt: Debt }) {
+function DebtCard({ debt }: { debt: Debt }) {
   const { deleteDebt } = useStore();
   const [expanded, setExpanded] = useState(false);
   const [showPay, setShowPay]   = useState(false);
@@ -252,7 +252,7 @@ export function Debts() {
                 <span className="text-white/70 text-xs font-semibold">Total original: {formatCompact(totalOrig)}</span>
               </div>
             </div>
-          </Card>
+          </motion.div>
         )}
 
         {/* Active */}

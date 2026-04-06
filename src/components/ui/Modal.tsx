@@ -7,10 +7,9 @@ interface ModalProps {
   onClose: () => void;
   title?: string;
   children: React.ReactNode;
-  width?: string;
 }
 
-export function Modal({ isOpen, onClose, title, children, width = 'max-w-md' }: ModalProps) {
+export function Modal({ isOpen, onClose, title, children }: ModalProps) {
   useEffect(() => {
     document.body.style.overflow = isOpen ? 'hidden' : '';
     return () => { document.body.style.overflow = ''; };
@@ -26,7 +25,6 @@ export function Modal({ isOpen, onClose, title, children, width = 'max-w-md' }: 
     <AnimatePresence>
       {isOpen && (
         <>
-          {/* Backdrop */}
           <motion.div
             className="fixed inset-0 bg-black/50 backdrop-blur-sm z-40"
             initial={{ opacity: 0 }}
@@ -42,7 +40,6 @@ export function Modal({ isOpen, onClose, title, children, width = 'max-w-md' }: 
             transition={{ type: 'spring', damping: 30, stiffness: 300 }}
           >
             <div className="bg-card rounded-t-3xl overflow-hidden max-h-[92vh] flex flex-col shadow-dropdown border-t border-border">
-              {/* Handle */}
               <div className="flex justify-center pt-3 pb-1 flex-shrink-0">
                 <div className="w-10 h-1 rounded-full bg-border" />
               </div>
@@ -58,9 +55,6 @@ export function Modal({ isOpen, onClose, title, children, width = 'max-w-md' }: 
                   </button>
                 </div>
               )}
-              <div className="overflow-y-auto flex-1">{children}</div>
-            </motion.div>
-          </div>
 
               <div className="overflow-y-auto flex-1">
                 {children}
