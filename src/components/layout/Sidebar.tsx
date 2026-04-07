@@ -1,10 +1,12 @@
 import { motion } from 'framer-motion';
 import {
   LayoutDashboard, ArrowLeftRight, PiggyBank, CreditCard,
-  BarChart2, Moon, Sun, Landmark, UserX, Zap, LogOut
+  BarChart2, Moon, Sun, Landmark, UserX, Zap, LogOut, Smartphone
 } from 'lucide-react';
+import { useState } from 'react';
 import { useStore } from '../../store/useStore';
 import { useAuthStore } from '../../store/useAuthStore';
+import { ShortcutSetupModal } from '../ui/ShortcutSetupModal';
 import type { TabName } from '../../types';
 
 const nav: { id: TabName; label: string; icon: React.FC<{ size?: number; strokeWidth?: number }> }[] = [
@@ -20,6 +22,7 @@ const nav: { id: TabName; label: string; icon: React.FC<{ size?: number; strokeW
 export function Sidebar() {
   const { activeTab, setActiveTab, isDark, toggleDark, resetToDefaults } = useStore();
   const { user, signOut } = useAuthStore();
+  const [shortcutOpen, setShortcutOpen] = useState(false);
 
   const handleSignOut = async () => {
     resetToDefaults();
@@ -93,6 +96,13 @@ export function Sidebar() {
           </div>
         )}
         <button
+          onClick={() => setShortcutOpen(true)}
+          className="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm text-white/40 hover:text-white/75 hover:bg-white/5 transition-all duration-150"
+        >
+          <Smartphone size={16} strokeWidth={1.8} />
+          <span className="font-medium">Atajo iPhone</span>
+        </button>
+        <button
           onClick={toggleDark}
           className="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm text-white/40 hover:text-white/75 hover:bg-white/5 transition-all duration-150"
         >
@@ -109,6 +119,8 @@ export function Sidebar() {
           <span className="font-medium">Cerrar sesión</span>
         </button>
       </div>
+
+      <ShortcutSetupModal open={shortcutOpen} onClose={() => setShortcutOpen(false)} />
     </aside>
   );
 }
