@@ -55,6 +55,10 @@ interface AppState {
   addDebtor: (d: Omit<Debtor, 'id' | 'createdAt' | 'payments'>) => void;
   deleteDebtor: (id: string) => void;
   addDebtorPayment: (debtorId: string, payment: Omit<DebtorPayment, 'id'>) => void;
+
+  // Cloud sync
+  loadCloudData: (data: Partial<AppState>) => void;
+  resetToDefaults: () => void;
 }
 
 const DEFAULT_CATEGORIES: Category[] = [
@@ -214,6 +218,19 @@ export const useStore = create<AppState>()(
             };
           }),
         })),
+
+      loadCloudData: (data) => set((s) => ({ ...s, ...data })),
+
+      resetToDefaults: () =>
+        set({
+          transactions: [],
+          accounts: [],
+          savingGoals: [],
+          debts: [],
+          debtors: [],
+          budgets: [],
+          categories: DEFAULT_CATEGORIES,
+        }),
     }),
     {
       name: 'finanzas-storage',
