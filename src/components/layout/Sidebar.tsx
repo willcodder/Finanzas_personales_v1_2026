@@ -1,9 +1,10 @@
 import { motion } from 'framer-motion';
 import {
   LayoutDashboard, ArrowLeftRight, PiggyBank, CreditCard,
-  BarChart2, Moon, Sun, Landmark, UserX, Zap
+  BarChart2, Moon, Sun, Landmark, UserX, Zap, LogOut
 } from 'lucide-react';
 import { useStore } from '../../store/useStore';
+import { useAuthStore } from '../../store/useAuthStore';
 import type { TabName } from '../../types';
 
 const nav: { id: TabName; label: string; icon: React.FC<{ size?: number; strokeWidth?: number }> }[] = [
@@ -17,7 +18,13 @@ const nav: { id: TabName; label: string; icon: React.FC<{ size?: number; strokeW
 ];
 
 export function Sidebar() {
-  const { activeTab, setActiveTab, isDark, toggleDark } = useStore();
+  const { activeTab, setActiveTab, isDark, toggleDark, resetToDefaults } = useStore();
+  const { user, signOut } = useAuthStore();
+
+  const handleSignOut = async () => {
+    resetToDefaults();
+    await signOut();
+  };
 
   return (
     <aside className="hidden md:flex fixed inset-y-0 left-0 w-56 flex-col bg-sidebar z-40">
@@ -79,7 +86,12 @@ export function Sidebar() {
 
       {/* Bottom */}
       <div className="mx-4 h-px bg-white/5 mb-3" />
-      <div className="px-3 pb-6">
+      <div className="px-3 pb-6 space-y-0.5">
+        {user && (
+          <div className="px-3 py-2 mb-1">
+            <p className="text-2xs text-white/25 font-medium truncate">{user.email}</p>
+          </div>
+        )}
         <button
           onClick={toggleDark}
           className="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm text-white/40 hover:text-white/75 hover:bg-white/5 transition-all duration-150"
@@ -88,6 +100,13 @@ export function Sidebar() {
             ? <Sun size={16} strokeWidth={1.8} className="text-yellow-400/80" />
             : <Moon size={16} strokeWidth={1.8} />}
           <span className="font-medium">{isDark ? 'Modo claro' : 'Modo oscuro'}</span>
+        </button>
+        <button
+          onClick={handleSignOut}
+          className="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm text-white/40 hover:text-red-400/80 hover:bg-red-500/10 transition-all duration-150"
+        >
+          <LogOut size={16} strokeWidth={1.8} />
+          <span className="font-medium">Cerrar sesión</span>
         </button>
       </div>
     </aside>
