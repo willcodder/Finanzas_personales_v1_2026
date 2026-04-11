@@ -15,7 +15,11 @@ import { Reports } from './pages/Reports';
 import { Debtors } from './pages/Debtors';
 import { QuickAdd } from './components/ui/QuickAdd';
 import { Auth } from './pages/Auth';
+import { QuickAddPage } from './pages/QuickAddPage';
 import './index.css';
+
+// Detect ?q=expense|income (for home screen shortcut)
+const quickParam = new URLSearchParams(window.location.search).get('q') as 'expense' | 'income' | null;
 
 function App() {
   const { activeTab, isDark, loadCloudData, resetToDefaults } = useStore();
@@ -135,6 +139,11 @@ function App() {
         </motion.div>
       </div>
     );
+  }
+
+  // Quick-add home screen shortcut mode
+  if (quickParam) {
+    return <QuickAddPage defaultType={quickParam} />;
   }
 
   // Auth gate

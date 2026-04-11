@@ -1,181 +1,164 @@
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { X, Smartphone, Copy, Check, RefreshCw, Download, ChevronRight, Zap } from 'lucide-react';
-import { supabase } from '../../lib/supabase';
-import { useAuthStore } from '../../store/useAuthStore';
+import { X, Smartphone, Copy, Check, ChevronRight, Zap } from 'lucide-react';
 
 interface Props {
   open: boolean;
   onClose: () => void;
 }
 
-// Hosted on GitHub Pages — same origin as the app
-const SHORTCUT_URL =
-  'https://willcodder.github.io/Finanzas_personales_v1_2026/finanzapp.shortcut';
+const BASE = 'https://willcodder.github.io/Finanzas_personales_v1_2026';
+const EXPENSE_URL = `${BASE}/?q=expense`;
+const INCOME_URL  = `${BASE}/?q=income`;
 
 export function ShortcutSetupModal({ open, onClose }: Props) {
-  const { user } = useAuthStore();
-  const [token, setToken] = useState<string | null>(null);
-  const [loading, setLoading] = useState(false);
-  const [copied, setCopied] = useState(false);
-  const [regenerating, setRegenerating] = useState(false);
-  const [step, setStep] = useState(0);
+  const [copied, setCopied] = useState<string | null>(null);
+  const [step, setStep]     = useState(0);
 
-  useEffect(() => {
-    if (open && user) fetchToken();
-    if (!open) setStep(0);
-  }, [open, user]);
-
-  const fetchToken = async () => {
-    setLoading(true);
-    const { data } = await supabase
-      .from('user_data')
-      .select('personal_token')
-      .eq('user_id', user!.id)
-      .single();
-    setToken(data?.personal_token ?? null);
-    setLoading(false);
-  };
-
-  const regenerate = async () => {
-    setRegenerating(true);
-    const newToken = crypto.randomUUID();
-    await supabase
-      .from('user_data')
-      .update({ personal_token: newToken })
-      .eq('user_id', user!.id);
-    setToken(newToken);
-    setRegenerating(false);
-  };
-
-  const copyToken = () => {
-    if (!token) return;
-    navigator.clipboard.writeText(token);
-    setCopied(true);
-    setTimeout(() => setCopied(false), 2000);
+  const copy = (text: string, key: string) => {
+    navigator.clipboard.writeText(text);
+    setCopied(key);
+    setTimeout(() => setCopied(null), 2000);
   };
 
   const steps = [
-    // ── Step 0: Download ───────────────────────────────────────────────────
     {
-      label: 'Descargar',
-      icon: '📲',
+      label: 'Cómo funciona',
+      icon: '📱',
       content: (
-        <div className="space-y-5">
+        <div className="space-y-4">
           <p className="text-sm text-white/55 leading-relaxed">
-            Descarga el Atajo oficial de FinanzApp. Funciona sin apps extra — solo la app
-            <strong className="text-white/70"> Atajos</strong> de Apple que ya tienes instalada.
+            Sin descargas. Añade la app a tu pantalla de inicio desde Safari
+            y tendrás un icono que abre directamente el formulario de añadir gastos.
           </p>
 
-          {/* Big download button */}
-          <a
-            href={SHORTCUT_URL}
-            target="_blank"
-            rel="noopener noreferrer"
-            className="flex items-center justify-center gap-3 w-full py-4 rounded-2xl font-bold text-white text-base transition-all active:scale-95"
-            style={{ background: 'linear-gradient(135deg, #5856D6 0%, #0A84FF 100%)' }}
-          >
-            <Download size={20} />
-            Descargar Atajo
-          </a>
-
-          <div className="rounded-2xl bg-white/5 border border-white/8 p-4 space-y-2.5">
-            <p className="text-xs font-semibold text-white/40 uppercase tracking-wider">Instrucciones</p>
-            {[
-              'Pulsa "Descargar Atajo" desde Safari en tu iPhone',
-              'Pulsa "Obtener atajo" cuando se abra la app Atajos',
-              'Introduce tu token personal cuando te lo pida',
-              '¡Listo! Úsalo desde la pantalla de inicio o el widget',
-            ].map((t, i) => (
-              <div key={i} className="flex items-start gap-2.5">
-                <div
-                  className="flex-shrink-0 w-5 h-5 rounded-full text-xs font-bold text-white flex items-center justify-center mt-0.5"
-                  style={{ background: 'linear-gradient(135deg, #5856D6, #0A84FF)' }}
-                >
-                  {i + 1}
-                </div>
-                <p className="text-sm text-white/55 leading-relaxed">{t}</p>
-              </div>
-            ))}
+          <div className="grid grid-cols-2 gap-2">
+            <div
+              className="rounded-2xl p-4 flex flex-col gap-2"
+              style={{ background: 'rgba(255,59,48,0.12)', border: '1px solid rgba(255,59,48,0.2)' }}
+            >
+              <span className="text-2xl">💸</span>
+              <p className="text-sm font-bold text-white">Gasto rápido</p>
+              <p className="text-xs text-white/40 leading-snug">Abre directo en modo gasto</p>
+            </div>
+            <div
+              className="rounded-2xl p-4 flex flex-col gap-2"
+              style={{ background: 'rgba(48,209,88,0.12)', border: '1px solid rgba(48,209,88,0.2)' }}
+            >
+              <span className="text-2xl">💰</span>
+              <p className="text-sm font-bold text-white">Ingreso rápido</p>
+              <p className="text-xs text-white/40 leading-snug">Abre directo en modo ingreso</p>
+            </div>
           </div>
 
           <button
             onClick={() => setStep(1)}
-            className="flex items-center gap-1.5 text-sm font-semibold text-brand hover:text-brand/70 transition-colors"
+            className="flex items-center justify-center gap-2 w-full py-3.5 rounded-2xl font-bold text-white text-sm"
+            style={{ background: 'linear-gradient(135deg,#5856D6,#0A84FF)' }}
           >
-            Ver mi token <ChevronRight size={14} />
+            Ver cómo instalarlo <ChevronRight size={15} />
           </button>
         </div>
       ),
     },
-
-    // ── Step 1: Token ──────────────────────────────────────────────────────
     {
-      label: 'Tu token',
-      icon: '🔑',
+      label: 'Instalar',
+      icon: '⬇️',
       content: (
         <div className="space-y-4">
           <p className="text-sm text-white/55 leading-relaxed">
-            Al instalar el Atajo, iOS te pedirá este token para identificar tu cuenta.
-            Cópialo y pégalo en el campo que aparezca.
+            Sigue estos pasos en tu iPhone con <strong className="text-white/75">Safari</strong>:
           </p>
 
-          {loading ? (
-            <div className="h-20 rounded-2xl bg-white/5 animate-pulse" />
-          ) : token ? (
-            <>
-              <div className="relative">
-                <div className="rounded-2xl bg-white/5 border border-white/10 p-4 pr-14">
-                  <p className="text-2xs text-white/30 font-semibold uppercase tracking-widest mb-1.5">
-                    Token personal
-                  </p>
-                  <p className="text-white font-mono text-sm break-all leading-relaxed">
-                    {token}
-                  </p>
-                </div>
+          {[
+            {
+              n: '1', icon: '🌐',
+              title: 'Abre la URL en Safari',
+              detail: 'Copia la URL de "Gasto rápido" o "Ingreso rápido" y ábrela en Safari.',
+            },
+            {
+              n: '2', icon: '⬆️',
+              title: 'Pulsa el botón compartir',
+              detail: 'El icono de cuadrado con flecha hacia arriba, en la barra inferior de Safari.',
+            },
+            {
+              n: '3', icon: '➕',
+              title: '"Añadir a pantalla de inicio"',
+              detail: 'Desplázate en el menú hasta encontrar esta opción y pulsa "Añadir".',
+            },
+            {
+              n: '4', icon: '⚡',
+              title: '¡Listo!',
+              detail: 'Aparecerá un icono en tu pantalla de inicio. Al pulsarlo, se abre el formulario al instante.',
+            },
+          ].map(({ n, icon, title, detail }) => (
+            <div key={n} className="flex gap-3">
+              <div
+                className="flex-shrink-0 w-7 h-7 rounded-full flex items-center justify-center text-xs font-bold text-white mt-0.5"
+                style={{ background: 'linear-gradient(135deg,#5856D6,#0A84FF)' }}
+              >
+                {n}
+              </div>
+              <div>
+                <p className="text-sm font-semibold text-white/80">{icon} {title}</p>
+                <p className="text-xs text-white/40 leading-relaxed">{detail}</p>
+              </div>
+            </div>
+          ))}
+
+          <button
+            onClick={() => setStep(2)}
+            className="flex items-center justify-center gap-2 w-full py-3.5 rounded-2xl font-bold text-white text-sm"
+            style={{ background: 'linear-gradient(135deg,#5856D6,#0A84FF)' }}
+          >
+            Ver las URLs <ChevronRight size={15} />
+          </button>
+        </div>
+      ),
+    },
+    {
+      label: 'URLs',
+      icon: '🔗',
+      content: (
+        <div className="space-y-4">
+          <p className="text-sm text-white/55 leading-relaxed">
+            Copia la URL que quieras y ábrela en Safari para instalarla.
+          </p>
+
+          {[
+            { label: '💸 Gasto rápido', url: EXPENSE_URL, key: 'expense' },
+            { label: '💰 Ingreso rápido', url: INCOME_URL, key: 'income' },
+          ].map(({ label, url, key }) => (
+            <div
+              key={key}
+              className="rounded-2xl p-4"
+              style={{ background: '#2C2C2E', border: '1px solid rgba(255,255,255,0.08)' }}
+            >
+              <div className="flex items-center justify-between mb-2">
+                <p className="text-sm font-bold text-white">{label}</p>
                 <button
-                  onClick={copyToken}
-                  className="absolute right-3 top-1/2 -translate-y-1/2 w-9 h-9 rounded-xl bg-white/10 hover:bg-white/20 flex items-center justify-center transition-all"
+                  onClick={() => copy(url, key)}
+                  className="flex items-center gap-1.5 px-3 py-1 rounded-lg text-xs font-semibold transition-all"
+                  style={{ background: copied === key ? 'rgba(48,209,88,0.2)' : 'rgba(10,132,255,0.2)' }}
                 >
-                  {copied
-                    ? <Check size={16} className="text-green-400" />
-                    : <Copy size={16} className="text-white/60" />
+                  {copied === key
+                    ? <><Check size={11} className="text-green-400" /><span className="text-green-400">Copiada</span></>
+                    : <><Copy size={11} className="text-brand" /><span className="text-brand">Copiar</span></>
                   }
                 </button>
               </div>
-
-              {copied && (
-                <motion.p
-                  initial={{ opacity: 0, y: -4 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  className="text-xs text-green-400/80 text-center"
-                >
-                  ✓ Token copiado al portapapeles
-                </motion.p>
-              )}
-            </>
-          ) : (
-            <div className="rounded-2xl bg-red-500/10 border border-red-500/20 p-4">
-              <p className="text-sm text-red-400/80">
-                No se encontró token. Asegúrate de haber ejecutado el SQL de configuración en Supabase.
-              </p>
+              <p className="text-xs text-white/30 font-mono break-all leading-relaxed">{url}</p>
             </div>
-          )}
+          ))}
 
-          <div className="rounded-2xl bg-yellow-500/8 border border-yellow-500/15 p-3.5">
-            <p className="text-xs text-yellow-400/70 leading-relaxed">
-              <strong>Importante:</strong> no compartas tu token. Si lo haces por error, pulsa "Regenerar" para invalidarlo.
+          <div
+            className="rounded-2xl p-3.5"
+            style={{ background: 'rgba(10,132,255,0.08)', border: '1px solid rgba(10,132,255,0.2)' }}
+          >
+            <p className="text-xs text-brand/80 leading-relaxed">
+              <strong>Consejo:</strong> Instala los dos — uno para gastos y otro para ingresos. Ponles nombres como "💸 Gasto" y "💰 Ingreso" al guardarlos.
             </p>
           </div>
-
-          <button
-            onClick={regenerate}
-            disabled={regenerating}
-            className="flex items-center gap-2 text-xs text-white/25 hover:text-white/50 transition-colors"
-          >
-            <RefreshCw size={11} className={regenerating ? 'animate-spin' : ''} />
-            {regenerating ? 'Regenerando...' : 'Regenerar token'}
-          </button>
         </div>
       ),
     },
@@ -197,7 +180,7 @@ export function ShortcutSetupModal({ open, onClose }: Props) {
             animate={{ opacity: 1, y: 0, scale: 1 }}
             exit={{ opacity: 0, y: 20, scale: 0.97 }}
             transition={{ type: 'spring', damping: 28, stiffness: 350 }}
-            className="fixed inset-x-4 bottom-4 md:inset-auto md:top-1/2 md:left-1/2 md:-translate-x-1/2 md:-translate-y-1/2 md:w-[420px] z-50 rounded-3xl overflow-hidden flex flex-col max-h-[90vh]"
+            className="fixed inset-x-4 bottom-4 md:inset-auto md:top-1/2 md:left-1/2 md:-translate-x-1/2 md:-translate-y-1/2 md:w-[400px] z-50 rounded-3xl overflow-hidden flex flex-col max-h-[90vh]"
             style={{ backgroundColor: '#1C1C1E', border: '1px solid rgba(255,255,255,0.1)' }}
           >
             {/* Header */}
@@ -205,13 +188,13 @@ export function ShortcutSetupModal({ open, onClose }: Props) {
               <div className="flex items-center gap-3">
                 <div
                   className="w-9 h-9 rounded-xl flex items-center justify-center flex-shrink-0"
-                  style={{ background: 'linear-gradient(135deg, #5856D6 0%, #0A84FF 100%)' }}
+                  style={{ background: 'linear-gradient(135deg,#5856D6,#0A84FF)' }}
                 >
                   <Smartphone size={17} className="text-white" />
                 </div>
                 <div>
-                  <p className="text-sm font-bold text-white">Atajo de iPhone</p>
-                  <p className="text-2xs text-white/30">Añade gastos en 2 segundos</p>
+                  <p className="text-sm font-bold text-white">Acceso rápido iPhone</p>
+                  <p className="text-2xs text-white/30">Añade a pantalla de inicio</p>
                 </div>
               </div>
               <button
@@ -222,24 +205,19 @@ export function ShortcutSetupModal({ open, onClose }: Props) {
               </button>
             </div>
 
-            {/* Tab pills */}
-            <div className="flex gap-1.5 px-5 py-3 border-b border-white/8 flex-shrink-0">
+            {/* Tabs */}
+            <div className="flex gap-1 px-4 py-2.5 border-b border-white/8 flex-shrink-0">
               {steps.map((s, i) => (
                 <button
                   key={i}
                   onClick={() => setStep(i)}
-                  className={`flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl text-xs font-semibold transition-all ${
-                    step === i ? 'text-white' : 'text-white/35 hover:text-white/60 hover:bg-white/5'
+                  className={`flex-1 flex items-center justify-center gap-1 py-1.5 rounded-xl text-xs font-semibold transition-all ${
+                    step === i ? 'text-white' : 'text-white/30 hover:text-white/55 hover:bg-white/5'
                   }`}
-                  style={
-                    step === i
-                      ? {
-                          background:
-                            'linear-gradient(135deg, rgba(88,86,214,0.5) 0%, rgba(10,132,255,0.3) 100%)',
-                          border: '1px solid rgba(255,255,255,0.08)',
-                        }
-                      : {}
-                  }
+                  style={step === i ? {
+                    background: 'linear-gradient(135deg,rgba(88,86,214,0.5),rgba(10,132,255,0.3))',
+                    border: '1px solid rgba(255,255,255,0.08)',
+                  } : {}}
                 >
                   {s.icon} {s.label}
                 </button>
@@ -277,7 +255,7 @@ export function ShortcutSetupModal({ open, onClose }: Props) {
               <button
                 onClick={onClose}
                 className="flex items-center gap-1.5 px-4 py-1.5 rounded-xl text-sm font-bold text-white"
-                style={{ background: 'linear-gradient(135deg, #5856D6, #0A84FF)' }}
+                style={{ background: 'linear-gradient(135deg,#5856D6,#0A84FF)' }}
               >
                 <Zap size={13} />
                 Listo
