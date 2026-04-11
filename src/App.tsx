@@ -18,8 +18,10 @@ import { Auth } from './pages/Auth';
 import { QuickAddPage } from './pages/QuickAddPage';
 import './index.css';
 
-// Detect ?q=expense|income (for home screen shortcut)
-const quickParam = new URLSearchParams(window.location.search).get('q') as 'expense' | 'income' | null;
+// Detect quick-add mode: ?q=expense|income&t=TOKEN
+const _qs        = new URLSearchParams(window.location.search);
+const quickParam = _qs.get('q') as 'expense' | 'income' | null;
+const quickToken = _qs.get('t');
 
 function App() {
   const { activeTab, isDark, loadCloudData, resetToDefaults } = useStore();
@@ -141,9 +143,9 @@ function App() {
     );
   }
 
-  // Quick-add home screen shortcut mode
-  if (quickParam) {
-    return <QuickAddPage defaultType={quickParam} />;
+  // Quick-add home screen shortcut — token-based, no auth needed
+  if (quickParam && quickToken) {
+    return <QuickAddPage token={quickToken} defaultType={quickParam} />;
   }
 
   // Auth gate

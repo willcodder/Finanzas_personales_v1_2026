@@ -1,6 +1,8 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { X, Smartphone, Copy, Check, ChevronRight, Zap } from 'lucide-react';
+import { X, Smartphone, Copy, Check, ChevronRight, Zap, RefreshCw } from 'lucide-react';
+import { supabase } from '../../lib/supabase';
+import { useAuthStore } from '../../store/useAuthStore';
 
 interface Props {
   open: boolean;
@@ -8,12 +10,41 @@ interface Props {
 }
 
 const BASE = 'https://willcodder.github.io/Finanzas_personales_v1_2026';
-const EXPENSE_URL = `${BASE}/?q=expense`;
-const INCOME_URL  = `${BASE}/?q=income`;
 
 export function ShortcutSetupModal({ open, onClose }: Props) {
-  const [copied, setCopied] = useState<string | null>(null);
-  const [step, setStep]     = useState(0);
+  const { user }                      = useAuthStore();
+  const [token, setToken]             = useState<string | null>(null);
+  const [loading, setLoading]         = useState(false);
+  const [regenerating, setRegenerating] = useState(false);
+  const [copied, setCopied]           = useState<string | null>(null);
+  const [step, setStep]               = useState(0);
+
+  useEffect(() => {
+    if (open && user) fetchToken();
+    if (!open) setStep(0);
+  }, [open, user]);
+
+  const fetchToken = async () => {
+    setLoading(true);
+    const { data } = await supabase
+      .from('user_data')
+      .select('personal_token')
+      .eq('user_id', user!.id)
+      .single();
+    setToken(data?.personal_token ?? null);
+    setLoading(false);
+  };
+
+  const regenerate = async () => {
+    setRegenerating(true);
+    const t = crypto.randomUUID();
+    await supabase
+      .from('user_data')
+      .update({ personal_token: t })
+      .eq('user_id', user!.id);
+    setToken(t);
+    setRegenerating(false);
+  };
 
   const copy = (text: string, key: string) => {
     navigator.clipboard.writeText(text);
@@ -21,34 +52,47 @@ export function ShortcutSetupModal({ open, onClose }: Props) {
     setTimeout(() => setCopied(null), 2000);
   };
 
+  const expenseUrl = token ? `${BASE}/?q=expense&t=${token}` : null;
+  const incomeUrl  = token ? `${BASE}/?q=income&t=${token}`  : null;
+
   const steps = [
+    // ── Paso 0: Cómo funciona ─────────────────────────────────────────────
     {
-      label: 'Cómo funciona',
-      icon: '📱',
+      label: 'Qué es',
+      icon: '⚡',
       content: (
         <div className="space-y-4">
           <p className="text-sm text-white/55 leading-relaxed">
-            Sin descargas. Añade la app a tu pantalla de inicio desde Safari
-            y tendrás un icono que abre directamente el formulario de añadir gastos.
+            Cada usuario tiene una <strong className="text-white/80">URL única y cifrada</strong> que
+            identifica su cuenta. Añádela a la pantalla de inicio del iPhone y tendrás
+            acceso instantáneo sin iniciar sesión.
           </p>
 
-          <div className="grid grid-cols-2 gap-2">
-            <div
-              className="rounded-2xl p-4 flex flex-col gap-2"
-              style={{ background: 'rgba(255,59,48,0.12)', border: '1px solid rgba(255,59,48,0.2)' }}
-            >
-              <span className="text-2xl">💸</span>
-              <p className="text-sm font-bold text-white">Gasto rápido</p>
-              <p className="text-xs text-white/40 leading-snug">Abre directo en modo gasto</p>
-            </div>
-            <div
-              className="rounded-2xl p-4 flex flex-col gap-2"
-              style={{ background: 'rgba(48,209,88,0.12)', border: '1px solid rgba(48,209,88,0.2)' }}
-            >
-              <span className="text-2xl">💰</span>
-              <p className="text-sm font-bold text-white">Ingreso rápido</p>
-              <p className="text-xs text-white/40 leading-snug">Abre directo en modo ingreso</p>
-            </div>
+          <div className="grid grid-cols-2 gap-2.5">
+            {[
+              { icon: '💸', title: 'Gasto rápido', desc: 'Abre en modo gasto', color: 'rgba(255,59,48,0.12)', border: 'rgba(255,59,48,0.25)' },
+              { icon: '💰', title: 'Ingreso rápido', desc: 'Abre en modo ingreso', color: 'rgba(48,209,88,0.12)', border: 'rgba(48,209,88,0.25)' },
+            ].map(({ icon, title, desc, color, border }) => (
+              <div
+                key={title}
+                className="rounded-2xl p-4 space-y-1.5"
+                style={{ background: color, border: `1px solid ${border}` }}
+              >
+                <span className="text-2xl">{icon}</span>
+                <p className="text-sm font-bold text-white">{title}</p>
+                <p className="text-xs text-white/40">{desc}</p>
+              </div>
+            ))}
+          </div>
+
+          <div
+            className="rounded-2xl p-3.5"
+            style={{ background: 'rgba(88,86,214,0.12)', border: '1px solid rgba(88,86,214,0.25)' }}
+          >
+            <p className="text-xs text-white/60 leading-relaxed">
+              🔒 Tu URL incluye un token único de 32 caracteres. Nadie más puede acceder
+              a tus datos. Si lo compartes por error, regénéralo en 1 segundo.
+            </p>
           </div>
 
           <button
@@ -56,45 +100,111 @@ export function ShortcutSetupModal({ open, onClose }: Props) {
             className="flex items-center justify-center gap-2 w-full py-3.5 rounded-2xl font-bold text-white text-sm"
             style={{ background: 'linear-gradient(135deg,#5856D6,#0A84FF)' }}
           >
-            Ver cómo instalarlo <ChevronRight size={15} />
+            Ver mis URLs personales <ChevronRight size={15} />
           </button>
         </div>
       ),
     },
+
+    // ── Paso 1: URLs personalizadas ───────────────────────────────────────
     {
-      label: 'Instalar',
-      icon: '⬇️',
+      label: 'Mis URLs',
+      icon: '🔗',
       content: (
         <div className="space-y-4">
           <p className="text-sm text-white/55 leading-relaxed">
-            Sigue estos pasos en tu iPhone con <strong className="text-white/75">Safari</strong>:
+            Estas URLs son <strong className="text-white/75">exclusivamente tuyas</strong>.
+            Cópialas y ábrelas en Safari para instalarlas en tu iPhone.
+          </p>
+
+          {loading ? (
+            <div className="space-y-2">
+              <div className="h-20 rounded-2xl bg-white/5 animate-pulse" />
+              <div className="h-20 rounded-2xl bg-white/5 animate-pulse" />
+            </div>
+          ) : token ? (
+            <>
+              {[
+                { label: '💸 Gasto rápido', url: expenseUrl!, key: 'expense' },
+                { label: '💰 Ingreso rápido', url: incomeUrl!, key: 'income' },
+              ].map(({ label, url, key }) => (
+                <div
+                  key={key}
+                  className="rounded-2xl p-4"
+                  style={{ background: '#2C2C2E', border: '1px solid rgba(255,255,255,0.07)' }}
+                >
+                  <div className="flex items-center justify-between mb-2">
+                    <p className="text-sm font-bold text-white">{label}</p>
+                    <button
+                      onClick={() => copy(url, key)}
+                      className="flex items-center gap-1.5 px-3 py-1 rounded-lg text-xs font-semibold transition-all"
+                      style={{
+                        background: copied === key
+                          ? 'rgba(48,209,88,0.2)'
+                          : 'rgba(10,132,255,0.2)',
+                      }}
+                    >
+                      {copied === key ? (
+                        <><Check size={11} className="text-green-400" /><span className="text-green-400">Copiada</span></>
+                      ) : (
+                        <><Copy size={11} className="text-brand" /><span className="text-brand">Copiar</span></>
+                      )}
+                    </button>
+                  </div>
+                  <p className="text-2xs text-white/25 font-mono break-all leading-relaxed">{url}</p>
+                </div>
+              ))}
+
+              <button
+                onClick={regenerate}
+                disabled={regenerating}
+                className="flex items-center gap-2 text-xs text-white/25 hover:text-white/50 transition-colors"
+              >
+                <RefreshCw size={11} className={regenerating ? 'animate-spin' : ''} />
+                {regenerating ? 'Regenerando…' : 'Regenerar token (invalida las URLs anteriores)'}
+              </button>
+            </>
+          ) : (
+            <div
+              className="rounded-2xl p-4"
+              style={{ background: 'rgba(255,59,48,0.1)', border: '1px solid rgba(255,59,48,0.2)' }}
+            >
+              <p className="text-sm text-red-400/80">
+                No se encontró token. Ejecuta el SQL de configuración en Supabase primero.
+              </p>
+            </div>
+          )}
+
+          <button
+            onClick={() => setStep(2)}
+            className="flex items-center gap-1.5 text-sm font-semibold text-brand hover:text-brand/70 transition-colors"
+          >
+            Cómo instalar en iPhone <ChevronRight size={14} />
+          </button>
+        </div>
+      ),
+    },
+
+    // ── Paso 2: Instrucciones ─────────────────────────────────────────────
+    {
+      label: 'Instalar',
+      icon: '📲',
+      content: (
+        <div className="space-y-4">
+          <p className="text-sm text-white/55 leading-relaxed">
+            En tu iPhone, con <strong className="text-white/75">Safari</strong>:
           </p>
 
           {[
-            {
-              n: '1', icon: '🌐',
-              title: 'Abre la URL en Safari',
-              detail: 'Copia la URL de "Gasto rápido" o "Ingreso rápido" y ábrela en Safari.',
-            },
-            {
-              n: '2', icon: '⬆️',
-              title: 'Pulsa el botón compartir',
-              detail: 'El icono de cuadrado con flecha hacia arriba, en la barra inferior de Safari.',
-            },
-            {
-              n: '3', icon: '➕',
-              title: '"Añadir a pantalla de inicio"',
-              detail: 'Desplázate en el menú hasta encontrar esta opción y pulsa "Añadir".',
-            },
-            {
-              n: '4', icon: '⚡',
-              title: '¡Listo!',
-              detail: 'Aparecerá un icono en tu pantalla de inicio. Al pulsarlo, se abre el formulario al instante.',
-            },
+            { n: '1', icon: '📋', title: 'Copia tu URL', detail: 'Pulsa "Copiar" en el paso anterior para la URL que quieras (gasto o ingreso).' },
+            { n: '2', icon: '🌐', title: 'Pégala en Safari', detail: 'Abre Safari, pega la URL en la barra de dirección y carga la página.' },
+            { n: '3', icon: '⬆️', title: 'Pulsa compartir', detail: 'El icono de cuadrado con flecha ↑ en la barra de Safari.' },
+            { n: '4', icon: '➕', title: '"Añadir a inicio"', detail: 'Busca "Añadir a pantalla de inicio", ponle nombre (ej: "💸 Gasto") y pulsa Añadir.' },
+            { n: '5', icon: '🚀', title: '¡Listo!', detail: 'El icono aparece en tu pantalla. Al abrirlo, accede directo a tus datos.' },
           ].map(({ n, icon, title, detail }) => (
             <div key={n} className="flex gap-3">
               <div
-                className="flex-shrink-0 w-7 h-7 rounded-full flex items-center justify-center text-xs font-bold text-white mt-0.5"
+                className="flex-shrink-0 w-6 h-6 rounded-full flex items-center justify-center text-xs font-bold text-white mt-0.5"
                 style={{ background: 'linear-gradient(135deg,#5856D6,#0A84FF)' }}
               >
                 {n}
@@ -106,57 +216,12 @@ export function ShortcutSetupModal({ open, onClose }: Props) {
             </div>
           ))}
 
-          <button
-            onClick={() => setStep(2)}
-            className="flex items-center justify-center gap-2 w-full py-3.5 rounded-2xl font-bold text-white text-sm"
-            style={{ background: 'linear-gradient(135deg,#5856D6,#0A84FF)' }}
-          >
-            Ver las URLs <ChevronRight size={15} />
-          </button>
-        </div>
-      ),
-    },
-    {
-      label: 'URLs',
-      icon: '🔗',
-      content: (
-        <div className="space-y-4">
-          <p className="text-sm text-white/55 leading-relaxed">
-            Copia la URL que quieras y ábrela en Safari para instalarla.
-          </p>
-
-          {[
-            { label: '💸 Gasto rápido', url: EXPENSE_URL, key: 'expense' },
-            { label: '💰 Ingreso rápido', url: INCOME_URL, key: 'income' },
-          ].map(({ label, url, key }) => (
-            <div
-              key={key}
-              className="rounded-2xl p-4"
-              style={{ background: '#2C2C2E', border: '1px solid rgba(255,255,255,0.08)' }}
-            >
-              <div className="flex items-center justify-between mb-2">
-                <p className="text-sm font-bold text-white">{label}</p>
-                <button
-                  onClick={() => copy(url, key)}
-                  className="flex items-center gap-1.5 px-3 py-1 rounded-lg text-xs font-semibold transition-all"
-                  style={{ background: copied === key ? 'rgba(48,209,88,0.2)' : 'rgba(10,132,255,0.2)' }}
-                >
-                  {copied === key
-                    ? <><Check size={11} className="text-green-400" /><span className="text-green-400">Copiada</span></>
-                    : <><Copy size={11} className="text-brand" /><span className="text-brand">Copiar</span></>
-                  }
-                </button>
-              </div>
-              <p className="text-xs text-white/30 font-mono break-all leading-relaxed">{url}</p>
-            </div>
-          ))}
-
           <div
             className="rounded-2xl p-3.5"
             style={{ background: 'rgba(10,132,255,0.08)', border: '1px solid rgba(10,132,255,0.2)' }}
           >
             <p className="text-xs text-brand/80 leading-relaxed">
-              <strong>Consejo:</strong> Instala los dos — uno para gastos y otro para ingresos. Ponles nombres como "💸 Gasto" y "💰 Ingreso" al guardarlos.
+              💡 Instala los dos: uno para gastos y otro para ingresos. Tardarás 2 minutos en total.
             </p>
           </div>
         </div>
@@ -180,7 +245,7 @@ export function ShortcutSetupModal({ open, onClose }: Props) {
             animate={{ opacity: 1, y: 0, scale: 1 }}
             exit={{ opacity: 0, y: 20, scale: 0.97 }}
             transition={{ type: 'spring', damping: 28, stiffness: 350 }}
-            className="fixed inset-x-4 bottom-4 md:inset-auto md:top-1/2 md:left-1/2 md:-translate-x-1/2 md:-translate-y-1/2 md:w-[400px] z-50 rounded-3xl overflow-hidden flex flex-col max-h-[90vh]"
+            className="fixed inset-x-4 bottom-4 md:inset-auto md:top-1/2 md:left-1/2 md:-translate-x-1/2 md:-translate-y-1/2 md:w-[420px] z-50 rounded-3xl overflow-hidden flex flex-col max-h-[90vh]"
             style={{ backgroundColor: '#1C1C1E', border: '1px solid rgba(255,255,255,0.1)' }}
           >
             {/* Header */}
@@ -194,7 +259,7 @@ export function ShortcutSetupModal({ open, onClose }: Props) {
                 </div>
                 <div>
                   <p className="text-sm font-bold text-white">Acceso rápido iPhone</p>
-                  <p className="text-2xs text-white/30">Añade a pantalla de inicio</p>
+                  <p className="text-2xs text-white/30">URL única por usuario</p>
                 </div>
               </div>
               <button
@@ -219,7 +284,8 @@ export function ShortcutSetupModal({ open, onClose }: Props) {
                     border: '1px solid rgba(255,255,255,0.08)',
                   } : {}}
                 >
-                  {s.icon} {s.label}
+                  <span>{s.icon}</span>
+                  <span className="hidden sm:inline">{s.label}</span>
                 </button>
               ))}
             </div>
