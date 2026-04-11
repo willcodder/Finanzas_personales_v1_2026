@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { X, Smartphone, Copy, Check, ChevronRight, Zap, RefreshCw } from 'lucide-react';
+import { X, Smartphone, Copy, Check, ChevronRight, Zap, RefreshCw, Database } from 'lucide-react';
 import { supabase } from '../../lib/supabase';
 import { useAuthStore } from '../../store/useAuthStore';
 
@@ -11,13 +11,84 @@ interface Props {
 
 const BASE = 'https://willcodder.github.io/Finanzas_personales_v1_2026';
 
+const SQL = `-- 1. Token personal por usuario
+ALTER TABLE public.user_data
+  ADD COLUMN IF NOT EXISTS personal_token UUID DEFAULT gen_random_uuid();
+
+UPDATE public.user_data
+  SET personal_token = gen_random_uuid()
+  WHERE personal_token IS NULL;
+
+-- 2. Cargar datos por token (sin login)
+CREATE OR REPLACE FUNCTION public.get_quick_add_data(p_token UUID)
+RETURNS JSON LANGUAGE plpgsql SECURITY DEFINER AS $$
+DECLARE v_data JSONB;
+BEGIN
+  SELECT data INTO v_data FROM public.user_data
+  WHERE personal_token = p_token;
+  IF v_data IS NULL THEN
+    RETURN '{"error":"not_found"}'::JSON;
+  END IF;
+  RETURN json_build_object(
+    'categories', COALESCE(v_data->'categories','[]'),
+    'account_id', v_data->'accounts'->0->>'id'
+  );
+END; $$;
+
+GRANT EXECUTE ON FUNCTION
+  public.get_quick_add_data(UUID) TO anon;
+
+-- 3. Guardar transacción por token
+CREATE OR REPLACE FUNCTION public.quick_add_transaction(
+  p_token UUID, p_amount TEXT, p_type TEXT,
+  p_category TEXT, p_description TEXT DEFAULT '',
+  p_date TEXT DEFAULT NULL
+) RETURNS JSON LANGUAGE plpgsql SECURITY DEFINER AS $$
+DECLARE
+  v_user_id UUID; v_data JSONB;
+  v_tid TEXT; v_acc TEXT; v_cat TEXT; v_tx JSONB;
+BEGIN
+  SELECT user_id, data INTO v_user_id, v_data
+  FROM public.user_data WHERE personal_token = p_token;
+  IF v_user_id IS NULL THEN
+    RETURN '{"error":"token_invalid"}'::JSON;
+  END IF;
+  SELECT cat->>'id' INTO v_cat
+  FROM jsonb_array_elements(COALESCE(v_data->'categories','[]')) cat
+  WHERE lower(cat->>'name')=lower(p_category) LIMIT 1;
+  IF v_cat IS NULL THEN
+    SELECT cat->>'id' INTO v_cat
+    FROM jsonb_array_elements(COALESCE(v_data->'categories','[]')) cat
+    WHERE cat->>'type'=p_type OR cat->>'type'='both' LIMIT 1;
+  END IF;
+  v_tid := 'qt_'||floor(extract(epoch from clock_timestamp())*1000)::bigint::text;
+  v_acc := v_data->'accounts'->0->>'id';
+  v_tx  := jsonb_build_object(
+    'id',v_tid,'amount',(p_amount::NUMERIC),'type',p_type,
+    'categoryId',COALESCE(v_cat,'other'),
+    'description',COALESCE(p_description,''),
+    'date',COALESCE(p_date,to_char(NOW(),'YYYY-MM-DD')),
+    'accountId',COALESCE(v_acc,'')
+  );
+  UPDATE public.user_data SET
+    data=jsonb_set(data,'{transactions}',
+      COALESCE(data->'transactions','[]')||v_tx),
+    updated_at=NOW()
+  WHERE user_id=v_user_id;
+  RETURN json_build_object('ok',true,'id',v_tid);
+END; $$;
+
+GRANT EXECUTE ON FUNCTION
+  public.quick_add_transaction(UUID,TEXT,TEXT,TEXT,TEXT,TEXT)
+  TO anon, authenticated;`;
+
 export function ShortcutSetupModal({ open, onClose }: Props) {
-  const { user }                      = useAuthStore();
-  const [token, setToken]             = useState<string | null>(null);
-  const [loading, setLoading]         = useState(false);
+  const { user }                        = useAuthStore();
+  const [token, setToken]               = useState<string | null>(null);
+  const [loading, setLoading]           = useState(false);
   const [regenerating, setRegenerating] = useState(false);
-  const [copied, setCopied]           = useState<string | null>(null);
-  const [step, setStep]               = useState(0);
+  const [copied, setCopied]             = useState<string | null>(null);
+  const [step, setStep]                 = useState(0);
 
   useEffect(() => {
     if (open && user) fetchToken();
@@ -49,84 +120,86 @@ export function ShortcutSetupModal({ open, onClose }: Props) {
   const copy = (text: string, key: string) => {
     navigator.clipboard.writeText(text);
     setCopied(key);
-    setTimeout(() => setCopied(null), 2000);
+    setTimeout(() => setCopied(null), 2500);
   };
 
   const expenseUrl = token ? `${BASE}/?q=expense&t=${token}` : null;
   const incomeUrl  = token ? `${BASE}/?q=income&t=${token}`  : null;
 
   const steps = [
-    // ── Paso 0: Cómo funciona ─────────────────────────────────────────────
+
+    // ── 0. SQL setup ─────────────────────────────────────────────────────
     {
-      label: 'Qué es',
-      icon: '⚡',
+      label: 'SQL',
+      icon: <Database size={13} />,
       content: (
         <div className="space-y-4">
           <p className="text-sm text-white/55 leading-relaxed">
-            Cada usuario tiene una <strong className="text-white/80">URL única y cifrada</strong> que
-            identifica su cuenta. Añádela a la pantalla de inicio del iPhone y tendrás
-            acceso instantáneo sin iniciar sesión.
+            Ejecuta este SQL <strong className="text-white/75">una sola vez</strong> en{' '}
+            <strong className="text-white/75">Supabase → SQL Editor</strong>.
+            Activa las funciones de acceso rápido para todos tus usuarios.
           </p>
 
-          <div className="grid grid-cols-2 gap-2.5">
-            {[
-              { icon: '💸', title: 'Gasto rápido', desc: 'Abre en modo gasto', color: 'rgba(255,59,48,0.12)', border: 'rgba(255,59,48,0.25)' },
-              { icon: '💰', title: 'Ingreso rápido', desc: 'Abre en modo ingreso', color: 'rgba(48,209,88,0.12)', border: 'rgba(48,209,88,0.25)' },
-            ].map(({ icon, title, desc, color, border }) => (
-              <div
-                key={title}
-                className="rounded-2xl p-4 space-y-1.5"
-                style={{ background: color, border: `1px solid ${border}` }}
-              >
-                <span className="text-2xl">{icon}</span>
-                <p className="text-sm font-bold text-white">{title}</p>
-                <p className="text-xs text-white/40">{desc}</p>
-              </div>
-            ))}
+          <div className="relative">
+            <pre
+              className="rounded-2xl p-4 pr-12 text-2xs font-mono text-green-400/80 leading-relaxed overflow-auto max-h-48"
+              style={{ background: '#0D1117', border: '1px solid rgba(255,255,255,0.08)' }}
+            >
+              {SQL}
+            </pre>
+            <button
+              onClick={() => copy(SQL, 'sql')}
+              className="absolute top-3 right-3 w-8 h-8 rounded-xl bg-white/10 hover:bg-white/20 flex items-center justify-center transition-all flex-shrink-0"
+            >
+              {copied === 'sql'
+                ? <Check size={13} className="text-green-400" />
+                : <Copy size={13} className="text-white/50" />
+              }
+            </button>
           </div>
 
-          <div
-            className="rounded-2xl p-3.5"
-            style={{ background: 'rgba(88,86,214,0.12)', border: '1px solid rgba(88,86,214,0.25)' }}
-          >
-            <p className="text-xs text-white/60 leading-relaxed">
-              🔒 Tu URL incluye un token único de 32 caracteres. Nadie más puede acceder
-              a tus datos. Si lo compartes por error, regénéralo en 1 segundo.
-            </p>
-          </div>
+          {copied === 'sql' && (
+            <motion.p
+              initial={{ opacity: 0, y: -4 }}
+              animate={{ opacity: 1, y: 0 }}
+              className="text-xs text-green-400/80 text-center"
+            >
+              ✓ SQL copiado — pégalo en Supabase → SQL Editor → Run
+            </motion.p>
+          )}
 
           <button
             onClick={() => setStep(1)}
             className="flex items-center justify-center gap-2 w-full py-3.5 rounded-2xl font-bold text-white text-sm"
             style={{ background: 'linear-gradient(135deg,#5856D6,#0A84FF)' }}
           >
-            Ver mis URLs personales <ChevronRight size={15} />
+            Ya lo ejecuté <ChevronRight size={15} />
           </button>
         </div>
       ),
     },
 
-    // ── Paso 1: URLs personalizadas ───────────────────────────────────────
+    // ── 1. URLs personalizadas ────────────────────────────────────────────
     {
       label: 'Mis URLs',
       icon: '🔗',
       content: (
         <div className="space-y-4">
           <p className="text-sm text-white/55 leading-relaxed">
-            Estas URLs son <strong className="text-white/75">exclusivamente tuyas</strong>.
-            Cópialas y ábrelas en Safari para instalarlas en tu iPhone.
+            Estas URLs son <strong className="text-white/75">exclusivamente tuyas</strong>{' '}
+            — llevan tu token cifrado. Ábrelas en Safari para instalarlas en tu iPhone.
           </p>
 
           {loading ? (
-            <div className="space-y-2">
+            <div className="space-y-2.5">
               <div className="h-20 rounded-2xl bg-white/5 animate-pulse" />
               <div className="h-20 rounded-2xl bg-white/5 animate-pulse" />
             </div>
           ) : token ? (
             <>
               {[
-                { label: '💸 Gasto rápido', url: expenseUrl!, key: 'expense' },
-                { label: '💰 Ingreso rápido', url: incomeUrl!, key: 'income' },
+                { label: '💸 Gasto rápido',   url: expenseUrl!, key: 'expense' },
+                { label: '💰 Ingreso rápido',  url: incomeUrl!,  key: 'income'  },
               ].map(({ label, url, key }) => (
                 <div
                   key={key}
@@ -144,16 +217,25 @@ export function ShortcutSetupModal({ open, onClose }: Props) {
                           : 'rgba(10,132,255,0.2)',
                       }}
                     >
-                      {copied === key ? (
-                        <><Check size={11} className="text-green-400" /><span className="text-green-400">Copiada</span></>
-                      ) : (
-                        <><Copy size={11} className="text-brand" /><span className="text-brand">Copiar</span></>
-                      )}
+                      {copied === key
+                        ? <><Check size={11} className="text-green-400" /><span className="text-green-400">Copiada</span></>
+                        : <><Copy size={11} className="text-brand" /><span className="text-brand">Copiar</span></>
+                      }
                     </button>
                   </div>
                   <p className="text-2xs text-white/25 font-mono break-all leading-relaxed">{url}</p>
                 </div>
               ))}
+
+              <div
+                className="rounded-2xl p-3.5"
+                style={{ background: 'rgba(88,86,214,0.1)', border: '1px solid rgba(88,86,214,0.2)' }}
+              >
+                <p className="text-xs text-white/50 leading-relaxed">
+                  🔒 Cada usuario tiene su propia URL con token único de 32 caracteres.
+                  Si la compartes por error, pulsa "Regenerar" para invalidarla.
+                </p>
+              </div>
 
               <button
                 onClick={regenerate}
@@ -166,12 +248,17 @@ export function ShortcutSetupModal({ open, onClose }: Props) {
             </>
           ) : (
             <div
-              className="rounded-2xl p-4"
+              className="rounded-2xl p-4 space-y-2"
               style={{ background: 'rgba(255,59,48,0.1)', border: '1px solid rgba(255,59,48,0.2)' }}
             >
-              <p className="text-sm text-red-400/80">
-                No se encontró token. Ejecuta el SQL de configuración en Supabase primero.
-              </p>
+              <p className="text-sm font-bold text-red-400">Token no encontrado</p>
+              <p className="text-xs text-red-400/70">Ejecuta primero el SQL del paso anterior.</p>
+              <button
+                onClick={() => setStep(0)}
+                className="text-xs text-red-400/80 underline"
+              >
+                Volver al SQL →
+              </button>
             </div>
           )}
 
@@ -185,22 +272,22 @@ export function ShortcutSetupModal({ open, onClose }: Props) {
       ),
     },
 
-    // ── Paso 2: Instrucciones ─────────────────────────────────────────────
+    // ── 2. Instrucciones instalación ──────────────────────────────────────
     {
       label: 'Instalar',
       icon: '📲',
       content: (
-        <div className="space-y-4">
+        <div className="space-y-3.5">
           <p className="text-sm text-white/55 leading-relaxed">
-            En tu iPhone, con <strong className="text-white/75">Safari</strong>:
+            En tu iPhone, abre <strong className="text-white/75">Safari</strong> (no Chrome):
           </p>
 
           {[
-            { n: '1', icon: '📋', title: 'Copia tu URL', detail: 'Pulsa "Copiar" en el paso anterior para la URL que quieras (gasto o ingreso).' },
-            { n: '2', icon: '🌐', title: 'Pégala en Safari', detail: 'Abre Safari, pega la URL en la barra de dirección y carga la página.' },
-            { n: '3', icon: '⬆️', title: 'Pulsa compartir', detail: 'El icono de cuadrado con flecha ↑ en la barra de Safari.' },
-            { n: '4', icon: '➕', title: '"Añadir a inicio"', detail: 'Busca "Añadir a pantalla de inicio", ponle nombre (ej: "💸 Gasto") y pulsa Añadir.' },
-            { n: '5', icon: '🚀', title: '¡Listo!', detail: 'El icono aparece en tu pantalla. Al abrirlo, accede directo a tus datos.' },
+            { n: '1', icon: '📋', title: 'Copia tu URL',           detail: 'Pulsa "Copiar" en el paso anterior para la URL que quieras.' },
+            { n: '2', icon: '🌐', title: 'Pégala en Safari',       detail: 'Abre Safari → pégala en la barra de dirección → Enter.' },
+            { n: '3', icon: '⬆️', title: 'Pulsa el botón compartir', detail: 'El icono de cuadrado con flecha ↑ en la barra inferior.' },
+            { n: '4', icon: '➕', title: '"Añadir a pantalla de inicio"', detail: 'Ponle un nombre corto (ej: "💸 Gasto") y pulsa Añadir.' },
+            { n: '5', icon: '⚡', title: '¡Listo!',                detail: 'El icono aparece en tu pantalla. Al abrirlo accede directo a tus datos.' },
           ].map(({ n, icon, title, detail }) => (
             <div key={n} className="flex gap-3">
               <div
@@ -217,11 +304,12 @@ export function ShortcutSetupModal({ open, onClose }: Props) {
           ))}
 
           <div
-            className="rounded-2xl p-3.5"
+            className="rounded-2xl p-3.5 mt-1"
             style={{ background: 'rgba(10,132,255,0.08)', border: '1px solid rgba(10,132,255,0.2)' }}
           >
             <p className="text-xs text-brand/80 leading-relaxed">
-              💡 Instala los dos: uno para gastos y otro para ingresos. Tardarás 2 minutos en total.
+              💡 Instala los dos — gasto e ingreso. Tardarás 2 minutos en total
+              y los tendrás siempre a mano.
             </p>
           </div>
         </div>
@@ -259,7 +347,7 @@ export function ShortcutSetupModal({ open, onClose }: Props) {
                 </div>
                 <div>
                   <p className="text-sm font-bold text-white">Acceso rápido iPhone</p>
-                  <p className="text-2xs text-white/30">URL única por usuario</p>
+                  <p className="text-2xs text-white/30">URL única cifrada por usuario</p>
                 </div>
               </div>
               <button
@@ -284,8 +372,8 @@ export function ShortcutSetupModal({ open, onClose }: Props) {
                     border: '1px solid rgba(255,255,255,0.08)',
                   } : {}}
                 >
-                  <span>{s.icon}</span>
-                  <span className="hidden sm:inline">{s.label}</span>
+                  {typeof s.icon === 'string' ? s.icon : s.icon}
+                  <span className="hidden sm:inline ml-1">{s.label}</span>
                 </button>
               ))}
             </div>
